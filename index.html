@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>武将編成</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans',sans-serif}
+:root{
+  --bg:#f0ebe0;--panel:#d4c9a8;--card:#e8e0cc;--card-border:#b8a878;
+  --card-selected:#5590dd;--card-hover:#ddd5bb;
+  --text:#2a1a00;--text-muted:#7a6a50;
+  --green:#2a8040;--green-bg:#d0e8d0;
+  --blue:#2255aa;--blue-bg:#c8d8f0;
+  --tab-active:#f0ebe0;--tab-inactive:#c0b490;
+}
+
+.app{
+  display:flex;flex-direction:column;
+  height:100vh;width:100vw;
+  background:var(--bg);overflow:hidden;
+}
+
+/* タブ */
+.tabs{display:flex;background:var(--panel);border-bottom:2px solid var(--card-border);flex-shrink:0}
+.tab{padding:10px 20px;font-size:14px;font-weight:500;cursor:pointer;color:var(--text-muted);border:none;background:var(--tab-inactive);border-right:1px solid var(--card-border)}
+.tab.active{background:var(--tab-active);color:var(--text);border-bottom:2px solid var(--tab-active);margin-bottom:-2px}
+.tab:hover:not(.active){background:#ccc0a0}
+
+/* メインエリア */
+.main{display:flex;flex:1;min-height:0}
+
+/* 左パネル */
+.left-panel{
+  width:160px;flex-shrink:0;
+  background:var(--panel);border-right:1px solid var(--card-border);
+  padding:10px;display:flex;flex-direction:column;gap:7px;
+}
+.search-box,.filter-select{
+  width:100%;padding:5px 7px;font-size:12px;
+  border:1px solid var(--card-border);background:#f8f4ea;
+  border-radius:4px;color:var(--text);
+}
+.search-box:focus,.filter-select:focus{outline:none;border-color:var(--blue)}
+.general-list{flex:1;overflow-y:auto;border:1px solid var(--card-border);background:#f8f4ea;border-radius:4px;min-height:0}
+.general-item{padding:6px 9px;font-size:12px;cursor:pointer;color:var(--text);border-bottom:1px solid #e0d8c0}
+.general-item:hover{background:#e8e0cc}
+.general-item.sel{background:#d0d8f0;color:#1a3080}
+.confirm-btn{padding:7px;background:#4a7a30;color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:500;cursor:pointer}
+.confirm-btn:hover{background:#3a6a20}
+.swap-btn{padding:7px;background:#888;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer}
+
+/* 右パネル */
+.right-panel{
+  flex:1;min-width:0;
+  display:flex;flex-direction:column;
+  padding:10px;gap:8px;overflow:hidden;
+}
+.formation-name-input{
+  padding:5px 9px;font-size:13px;
+  border:1px solid var(--card-border);background:#f8f4ea;
+  border-radius:4px;color:var(--text);width:160px;
+}
+.formation-name-input:focus{outline:none;border-color:var(--blue)}
+
+/* スロットグリッド：狭い時は縮む・広い時は上限で中央寄せ */
+.slots-grid-wrap{
+  flex:1;min-height:0;
+  display:flex;align-items:flex-start;justify-content:center;
+  overflow-x:auto;
+}
+.slots-grid{
+  display:flex;gap:6px;
+  align-items:flex-start;
+  /* 上限680px。それ以下は横幅いっぱいに伸びる */
+  width:100%;
+  max-width:1200px;
+}
+.slot-col{
+  /* 均等に伸縮、最大90px */
+  flex:110;min-width:0;max-width:100px;
+  display:flex;flex-direction:column;align-items:center;
+  gap:3px;
+}
+.slot-col-label{font-size:11px;color:var(--text-muted);text-align:center;line-height:16px;white-space:nowrap}
+
+/* カードはcolの幅に追従、正方形 */
+.slot-card{
+  width:100%;aspect-ratio:1/1;
+  border-radius:6px;border:1.5px solid var(--card-border);
+  background:var(--card);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;position:relative;transition:border-color 0.15s;
+  overflow:hidden;
+}
+.slot-card:hover{border-color:#8899cc}
+.slot-card.selected{border:2.5px solid var(--card-selected);background:#dce8f8}
+.slot-card.empty-slot{background:#e8e2d0}
+.slot-card-img{width:100%;height:100%;object-fit:cover;display:block}
+.slot-icon{font-size:10px;color:#b0a080;text-align:center;line-height:1.5;white-space:pre-line}
+.slot-name{font-size:11px;color:var(--text);font-weight:500;text-align:center;padding:0 2px}
+.slot-name-under{
+  font-size:11px;color:var(--text);font-weight:500;text-align:center;
+  width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  line-height:1.3;min-height:15px;
+}
+.slot-rarity{position:absolute;bottom:2px;right:2px;font-size:8px;padding:1px 3px;border-radius:3px;color:#fff;font-weight:500;z-index:2}
+.rarity-LG{background:#aa3311}.rarity-SSR{background:#997700}.rarity-SR{background:#4444aa}.rarity-R{background:#3a7a3a}.rarity-N{background:#888}
+.sub-label{font-size:9px;color:var(--text-muted)}
+.slot-spacer{width:100%;aspect-ratio:1/1;visibility:hidden}
+
+.col-divider{width:80%;height:1px;background:var(--card-border);margin:2px 0;opacity:0.5}
+
+/* 行動ボタン */
+.action-btn{
+  width:100%;
+  padding:4px 2px;font-size:9px;font-weight:500;
+  border-radius:4px;border:1.5px solid var(--card-border);
+  background:var(--card);color:var(--text);
+  cursor:pointer;text-align:center;line-height:1.3;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.action-btn:hover{background:var(--card-hover)}
+.action-btn.off{background:#e0dbd0;color:var(--text-muted);border-color:#c0b890}
+.action-btn.timing-on{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
+.action-btn.timing-special{background:var(--green-bg);border-color:var(--green);color:var(--green)}
+.action-btn.policy-on{background:#f0e0c8;border-color:#c08030;color:#7a4010}
+.btn-row-label{font-size:8px;color:var(--text-muted);margin-top:1px}
+
+/* ボトムバー */
+.bottom-bar{
+  display:flex;gap:8px;padding:8px 10px;
+  background:var(--panel);border-top:1px solid var(--card-border);
+  flex-shrink:0;
+}
+.icon-btn{
+  width:34px;height:34px;border-radius:50%;
+  border:1.5px solid var(--card-border);background:var(--card);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:15px;color:var(--text);
+}
+.icon-btn:hover{background:var(--card-hover)}
+
+/* ポイント効率タブ */
+#tab-point{flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:14px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('edit')">編成</button>
+    <button class="tab" onclick="switchTab('point')">ポイント効率</button>
+  </div>
+
+  <div id="tab-edit" style="display:flex;flex-direction:column;flex:1;min-height:0">
+    <div class="main">
+      <div class="left-panel">
+        <input class="search-box" type="text" placeholder="武将名を入力" id="search-input" oninput="filterList()">
+        <div class="general-list" id="general-list"></div>
+        <button class="confirm-btn" onclick="confirmSelection()">確定</button>
+        <button class="swap-btn" onclick="toggleSwap()">入替 <span id="swap-status">OFF</span></button>
+      </div>
+
+      <div class="right-panel">
+        <div><input class="formation-name-input" type="text" placeholder="編成名"></div>
+        <div class="slots-grid-wrap">
+          <div class="slots-grid" id="slots-grid"></div>
+        </div>
+      </div>
+    </div>
+    <div class="bottom-bar">
+      <button class="icon-btn"><i class="ti ti-photo" aria-hidden="true"></i></button>
+      <button class="icon-btn"><i class="ti ti-plus" aria-hidden="true"></i></button>
+      <button class="icon-btn"><i class="ti ti-camera" aria-hidden="true"></i></button>
+      <button class="icon-btn"><i class="ti ti-upload" aria-hidden="true"></i></button>
+    </div>
+  </div>
+
+  <div id="tab-point" style="display:none">ポイント効率機能（未実装）</div>
+</div>
+
+<script>
+const COLS = [
+  {label:'総大将',hasSub:true},
+  {label:'第1軍', hasSub:true},
+  {label:'第2軍', hasSub:true},
+  {label:'第3軍', hasSub:true},
+  {label:'第4軍', hasSub:true},
+  {label:'軍師',  hasSub:false},
+  {label:'援軍',  hasSub:true},
+];
+
+const TIMING_OPTS = ['オフ','交戦時','士気最大時'];
+const POLICY_OPTS = ['オフ','要所防衛','部隊優先','全部隊撃破','全敵将撃破','要所優先','部隊停止'];
+
+// ===== Supabase 連携 =====
+const SUPABASE_URL = 'https://movhdunyesfscutphpcf.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vdmhkdW55ZXNmc2N1dHBocGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NTg1NjIsImV4cCI6MjA5MzAzNDU2Mn0.Af014z6apQOdDFUdL99FLdjGMzpl4Wh-n796iK8Hch0';
+
+// 画像未設定の武将用フォールバック画像
+function placeholderImg(name){
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=b8a878&color=fff&size=128&font-size=0.4&bold=true`;
+}
+
+// カタカナ→ひらがな正規化（検索でひらがな/カタカナどちらでも一致させる）
+function toHiragana(str){
+  return (str||'').replace(/[\u30a1-\u30f6]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+}
+
+let GENERALS = [];
+
+async function fetchGenerals(){
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/chars?select=name,yomi,img&order=name.asc`,
+    {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+      }
+    }
+  );
+  if(!res.ok){
+    throw new Error(`Supabaseからの取得に失敗しました (status ${res.status})`);
+  }
+  const rows = await res.json();
+  return rows.map(r => ({
+    name: r.name,
+    yomi: toHiragana(r.yomi || ''),
+    img: r.img || placeholderImg(r.name)
+  }));
+}
+
+let slots = COLS.map(()=>({main:null,sub:null}));
+let timings  = COLS.map((_,i)=> i===5 ? null : 0);
+let policies = COLS.map((_,i)=> i===5 ? null : 0);
+let selectedSlot = {col:0,role:'main'};
+let selectedGeneral = null;
+let swapMode = false;
+let filteredList = [...GENERALS];
+
+function switchTab(t){
+  document.getElementById('tab-edit').style.display = t==='edit' ? 'flex' : 'none';
+  document.getElementById('tab-point').style.display = t==='point' ? 'flex' : 'none';
+  document.querySelectorAll('.tab').forEach((el,i)=>
+    el.classList.toggle('active',(t==='edit'&&i===0)||(t==='point'&&i===1))
+  );
+}
+function filterList(){
+  const raw = document.getElementById('search-input').value.trim();
+  const q = toHiragana(raw);
+  filteredList = !q ? [...GENERALS] : GENERALS.filter(g =>
+    g.name.includes(raw) || g.yomi.includes(q)
+  );
+  renderList();
+}
+function renderList(){
+  const list = document.getElementById('general-list');
+  if(GENERALS.length === 0){
+    list.innerHTML = `<div style="padding:10px;font-size:12px;color:var(--text-muted)">読み込み中...</div>`;
+    return;
+  }
+  list.innerHTML = filteredList.map(g=>
+    `<div class="general-item${selectedGeneral===g.name?' sel':''}" onclick="selectGeneral('${g.name}')">${g.name}</div>`
+  ).join('');
+}
+function selectGeneral(name){ selectedGeneral=name; renderList(); }
+function confirmSelection(){
+  if(!selectedGeneral) return;
+  const g = GENERALS.find(x=>x.name===selectedGeneral);
+  if(!g) return;
+  slots[selectedSlot.col][selectedSlot.role] = g;
+  render();
+}
+function toggleSwap(){ swapMode=!swapMode; document.getElementById('swap-status').textContent=swapMode?'ON':'OFF'; }
+function clickSlot(col,role){ selectedSlot={col,role}; render(); }
+function cycleTiming(col){ timings[col]=(timings[col]+1)%TIMING_OPTS.length; render(); }
+function cyclePolicy(col){ policies[col]=(policies[col]+1)%POLICY_OPTS.length; render(); }
+
+function slotCardHTML(col,role){
+  const g = slots[col][role];
+  const isSel = selectedSlot.col===col && selectedSlot.role===role;
+  const selClass = isSel ? ' selected' : '';
+  if(g){
+    return `<div class="slot-card${selClass}" onclick="clickSlot(${col},'${role}')">
+      <img class="slot-card-img" src="${g.img}" alt="${g.name}" onerror="this.onerror=null;this.src='${placeholderImg(g.name)}'">
+    </div>`;
+  }
+  return `<div class="slot-card empty-slot${selClass}" onclick="clickSlot(${col},'${role}')">
+    <div class="slot-icon">${isSel?'選択中':'武将を選択'}</div>
+  </div>`;
+}
+function slotNameHTML(col,role){
+  const g = slots[col][role];
+  return `<div class="slot-name-under">${g ? g.name : ''}</div>`;
+}
+
+function timingBtnClass(col){
+  const v = timings[col];
+  if(v===0) return 'action-btn off';
+  if(v===1) return 'action-btn timing-on';
+  return 'action-btn timing-special';
+}
+function policyBtnClass(col){
+  return policies[col]===0 ? 'action-btn off' : 'action-btn policy-on';
+}
+
+function render(){
+  document.getElementById('slots-grid').innerHTML = COLS.map((col,i)=>`
+    <div class="slot-col">
+      <div class="slot-col-label">${col.label}</div>
+      ${slotCardHTML(i,'main')}
+      ${slotNameHTML(i,'main')}
+      ${col.hasSub
+        ? `<div class="sub-label">副将</div>${slotCardHTML(i,'sub')}${slotNameHTML(i,'sub')}`
+        : `<div class="sub-label" style="visibility:hidden">副将</div><div class="slot-spacer"></div><div class="slot-name-under" style="visibility:hidden">-</div>`
+      }
+      ${i!==5 ? `
+        <div class="col-divider"></div>
+        <button class="${timingBtnClass(i)}" onclick="cycleTiming(${i})">${TIMING_OPTS[timings[i]]}</button>
+        <button class="${policyBtnClass(i)}" onclick="cyclePolicy(${i})">${POLICY_OPTS[policies[i]]}</button>
+      ` : `
+        <div class="col-divider" style="visibility:hidden"></div>
+        <div class="btn-row-label" style="visibility:hidden">-</div>
+        <div style="width:100%;max-width:90px;height:26px;visibility:hidden"></div>
+        <div class="btn-row-label" style="visibility:hidden">-</div>
+        <div style="width:100%;max-width:90px;height:26px;visibility:hidden"></div>
+      `}
+    </div>
+  `).join('');
+}
+
+async function init(){
+  renderList(); // "読み込み中..." 表示
+  render();
+  try{
+    GENERALS = await fetchGenerals();
+    filteredList = [...GENERALS];
+    renderList();
+  }catch(e){
+    console.error(e);
+    document.getElementById('general-list').innerHTML =
+      `<div style="padding:10px;font-size:12px;color:#aa3311">読み込みに失敗しました。<br>${e.message}</div>`;
+  }
+}
+init();
+</script>
+</body>
+</html>
