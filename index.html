@@ -195,9 +195,7 @@ const COLS = [
 const TIMING_OPTS = ['オフ','交戦時','士気最大時'];
 const POLICY_OPTS = ['オフ','要所防衛','部隊優先','全部隊撃破','全敵将撃破','要所優先','部隊停止'];
 
-// ===== Supabase 連携 =====
-const SUPABASE_URL = 'https://movhdunyesfscutphpcf.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vdmhkdW55ZXNmc2N1dHBocGNmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NTg1NjIsImV4cCI6MjA5MzAzNDU2Mn0.Af014z6apQOdDFUdL99FLdjGMzpl4Wh-n796iK8Hch0';
+// ===== キャラデータ取得（自前の /api/chars 経由。Supabaseには直接アクセスしない） =====
 
 // 画像未設定の武将用フォールバック画像
 function placeholderImg(name){
@@ -212,20 +210,12 @@ function toHiragana(str){
 let GENERALS = [];
 
 async function fetchGenerals(){
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/chars?select=name,yomi,img&order=name.asc`,
-    {
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`
-      }
-    }
-  );
+  const res = await fetch('/api/chars');
+  const body = await res.json().catch(()=>null);
   if(!res.ok){
-    throw new Error(`Supabaseからの取得に失敗しました (status ${res.status})`);
+    throw new Error((body && body.error) || `取得に失敗しました (status ${res.status})`);
   }
-  const rows = await res.json();
-  return rows.map(r => ({
+  return body.map(r => ({
     name: r.name,
     yomi: toHiragana(r.yomi || ''),
     img: r.img || placeholderImg(r.name)
