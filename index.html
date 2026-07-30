@@ -132,10 +132,12 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
   border:1px solid var(--card-border);
   background:var(--card);
   border-radius:6px;
-  display:flex;align-items:center;justify-content:center;
+  display:none;
+  align-items:center;justify-content:center;
   color:var(--text-muted);font-size:12px;
   overflow:hidden;
 }
+.preview-panel.open{display:flex}
 .preview-panel img{max-width:100%;max-height:100%;object-fit:contain}
 
 /* 行動ボタン */
@@ -222,8 +224,20 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
   .bottom-bar{padding:10px 14px}
   .icon-btn{width:42px;height:42px;font-size:17px}
   .icon-btn.swap-icon-btn{display:flex}
-  .icon-btn.swap-icon-btn.active{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
+
+  /* スロットは画面幅に収まるよう縮小表示（横スクロールなし） */
+  .slots-grid-wrap{overflow-x:hidden;overflow-y:auto}
+  .slots-grid{width:100%;justify-content:space-between;gap:3px}
+  .slot-col{flex:1 1 0;min-width:0;max-width:none}
+  .slot-col-label{font-size:9px;line-height:12px}
+  .sub-label{font-size:7px}
+  .slot-name-under{font-size:9px;min-height:12px}
+  .slot-icon{font-size:8px}
+  .slot-rarity{font-size:6px;padding:0 2px}
+  .action-btn{font-size:7px;padding:3px 1px;border-radius:3px}
+  .col-divider{margin:1px 0}
 }
+.icon-btn.on{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
 .icon-btn.swap-icon-btn{display:none}
 </style>
 </head>
@@ -257,10 +271,12 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
       </div>
     </div>
     <div class="bottom-bar">
+      <button class="icon-btn" id="preview-toggle-btn" onclick="togglePreview()" title="プレビュー">
+        <i class="ti ti-photo" aria-hidden="true"></i>
+      </button>
       <button class="icon-btn swap-icon-btn" id="swap-icon-btn" onclick="toggleSwap()" title="入替">
         <i class="ti ti-arrows-left-right" aria-hidden="true"></i>
       </button>
-      <button class="icon-btn"><i class="ti ti-photo" aria-hidden="true"></i></button>
       <button class="icon-btn"><i class="ti ti-plus" aria-hidden="true"></i></button>
       <button class="icon-btn"><i class="ti ti-camera" aria-hidden="true"></i></button>
       <button class="icon-btn"><i class="ti ti-upload" aria-hidden="true"></i></button>
@@ -353,6 +369,12 @@ function closeSheet(){
   document.getElementById('left-panel').classList.remove('open');
   document.getElementById('sheet-backdrop').classList.remove('open');
 }
+let previewOpen = false;
+function togglePreview(){
+  previewOpen = !previewOpen;
+  document.getElementById('preview-panel').classList.toggle('open', previewOpen);
+  document.getElementById('preview-toggle-btn').classList.toggle('on', previewOpen);
+}
 function selectGeneral(name){ selectedGeneral=name; renderList(); }
 function confirmSelection(){
   if(!selectedGeneral || !selectedSlot) return;
@@ -369,7 +391,7 @@ function toggleSwap(){
   swapMode=!swapMode;
   swapFirst=null;
   document.getElementById('swap-status').textContent=swapMode?'ON':'OFF';
-  document.getElementById('swap-icon-btn').classList.toggle('active',swapMode);
+  document.getElementById('swap-icon-btn').classList.toggle('on',swapMode);
   if(swapMode) closeSheet();
   render();
 }
