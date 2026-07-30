@@ -280,7 +280,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
       </button>
       <button class="icon-btn"><i class="ti ti-plus" aria-hidden="true"></i></button>
       <button class="icon-btn" onclick="saveScreenshot()" title="編成をスクリーンショット保存"><i class="ti ti-camera" aria-hidden="true"></i></button>
-      <button class="icon-btn"><i class="ti ti-upload" aria-hidden="true"></i></button>
+      <button class="icon-btn" onclick="saveFormation()" title="編成をコピー"><i class="ti ti-upload" aria-hidden="true"></i></button>
     </div>
   </div>
 
@@ -534,6 +534,77 @@ function render(){
     </div>
   `).join('');
 }
+
+// ===== 編成のコピー＆貼り付け復元 =====
+const FORMATION_PREFIX = 'SLOT_FORMATION_V1:';
+
+function utf8ToBase64(str){
+  return btoa(unescape(encodeURIComponent(str)));
+}
+function base64ToUtf8(str){
+  return decodeURIComponent(escape(atob(str)));
+}
+
+function serializeFormation(){
+  const nameInput = document.querySelector('.formation-name-input');
+  const data = {
+    v: 1,
+    name: nameInput ? nameInput.value : '',
+    slots: slots.map(s => ({
+      main: s.main ? s.main.name : null,
+      sub: s.sub ? s.sub.name : null
+    })),
+    timings,
+    policies
+  };
+  return FORMATION_PREFIX + utf8ToBase64(JSON.stringify(data));
+}
+
+async function saveFormation(){
+  const text = serializeFormation();
+  try{
+    await navigator.clipboard.writeText(text);
+    alert('編成をコピーしました。別の編成画面などで貼り付け（ペースト）すると、この内容でスロットが復元されます。');
+  }catch(err){
+    console.error(err);
+    window.prompt('自動コピーに失敗しました。以下のテキストを手動でコピーしてください:', text);
+  }
+}
+
+function findGeneralByName(name){
+  if(!name) return null;
+  return GENERALS.find(g => g.name === name) || {name, img: placeholderImg(name)};
+}
+
+function loadFormation(data){
+  if(!data || !Array.isArray(data.slots)) return;
+  slots = COLS.map((_, i) => {
+    const s = data.slots[i] || {};
+    return { main: findGeneralByName(s.main), sub: findGeneralByName(s.sub) };
+  });
+  if(Array.isArray(data.timings) && data.timings.length === COLS.length) timings = data.timings;
+  if(Array.isArray(data.policies) && data.policies.length === COLS.length) policies = data.policies;
+  const nameInput = document.querySelector('.formation-name-input');
+  if(nameInput && typeof data.name === 'string') nameInput.value = data.name;
+  selectedSlot = null;
+  swapFirst = null;
+  closeSheet();
+  render();
+}
+
+document.addEventListener('paste', (e) => {
+  const text = (e.clipboardData || window.clipboardData) ? (e.clipboardData || window.clipboardData).getData('text') : '';
+  if(!text || !text.startsWith(FORMATION_PREFIX)) return; // 通常のペーストは邪魔しない
+  e.preventDefault();
+  try{
+    const json = base64ToUtf8(text.slice(FORMATION_PREFIX.length));
+    const data = JSON.parse(json);
+    loadFormation(data);
+  }catch(err){
+    console.error(err);
+    alert('編成データの読み込みに失敗しました。コピーした文字列が正しいか確認してください。');
+  }
+});
 
 async function init(){
   renderList(); // "読み込み中..." 表示
