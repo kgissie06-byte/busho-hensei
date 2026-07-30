@@ -170,6 +170,61 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 
 /* ポイント効率タブ */
 #tab-point{flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:14px}
+
+/* シート用の背景（バックドロップ） */
+.sheet-backdrop{
+  position:fixed;inset:0;background:rgba(0,0,0,0.45);
+  opacity:0;pointer-events:none;transition:opacity .2s ease;
+  z-index:900;
+}
+.sheet-backdrop.open{opacity:1;pointer-events:auto}
+.sheet-header{display:none}
+
+/* ===== モバイル用レイアウト ===== */
+@media (max-width: 768px){
+  .left-panel{
+    position:fixed;left:0;right:0;bottom:0;
+    width:100%;height:72vh;max-height:72vh;
+    border-right:none;border-radius:16px 16px 0 0;
+    box-shadow:0 -6px 20px rgba(0,0,0,0.25);
+    transform:translateY(105%);
+    transition:transform .25s ease;
+    z-index:950;
+    padding:12px 14px 14px;
+  }
+  .left-panel.open{transform:translateY(0)}
+  .sheet-header{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:2px;
+  }
+  .sheet-header .sheet-title{font-size:14px;font-weight:600;color:var(--text)}
+  .sheet-close{
+    width:28px;height:28px;border-radius:50%;border:none;
+    background:var(--card-hover);color:var(--text);font-size:16px;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+  }
+  .search-box{font-size:16px;padding:9px 10px} /* 16px以上でiOS自動ズーム防止 */
+  .general-item{padding:12px 10px;font-size:14px}
+  .confirm-btn{padding:12px;font-size:14px}
+  .swap-btn{display:none} /* モバイルはボトムバーのスワップボタンを使用 */
+
+  .right-panel{padding:8px;gap:6px}
+  .formation-name-input{width:100%;font-size:16px}
+
+  /* スロットは横スクロールでカードサイズを確保 */
+  .slots-grid-wrap{overflow-x:auto;overflow-y:hidden}
+  .slots-grid{width:max-content;justify-content:flex-start;gap:10px}
+  .slot-col{flex:0 0 92px;max-width:92px;min-width:92px}
+
+  .action-btn{font-size:10px;padding:6px 2px}
+  .preview-panel{height:120px}
+
+  .bottom-bar{padding:10px 14px}
+  .icon-btn{width:42px;height:42px;font-size:17px}
+  .icon-btn.swap-icon-btn{display:flex}
+  .icon-btn.swap-icon-btn.active{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
+}
+.icon-btn.swap-icon-btn{display:none}
 </style>
 </head>
 <body>
@@ -181,12 +236,17 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 
   <div id="tab-edit" style="display:flex;flex-direction:column;flex:1;min-height:0">
     <div class="main">
-      <div class="left-panel">
+      <div class="left-panel" id="left-panel">
+        <div class="sheet-header">
+          <span class="sheet-title">武将を選択</span>
+          <button class="sheet-close" onclick="closeSheet()">✕</button>
+        </div>
         <input class="search-box" type="text" placeholder="武将名を入力" id="search-input" oninput="filterList()">
         <div class="general-list" id="general-list"></div>
         <button class="confirm-btn" onclick="confirmSelection()">確定</button>
         <button class="swap-btn" onclick="toggleSwap()">入替 <span id="swap-status">OFF</span></button>
       </div>
+      <div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSheet()"></div>
 
       <div class="right-panel">
         <div><input class="formation-name-input" type="text" placeholder="編成名"></div>
@@ -197,6 +257,9 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
       </div>
     </div>
     <div class="bottom-bar">
+      <button class="icon-btn swap-icon-btn" id="swap-icon-btn" onclick="toggleSwap()" title="入替">
+        <i class="ti ti-arrows-left-right" aria-hidden="true"></i>
+      </button>
       <button class="icon-btn"><i class="ti ti-photo" aria-hidden="true"></i></button>
       <button class="icon-btn"><i class="ti ti-plus" aria-hidden="true"></i></button>
       <button class="icon-btn"><i class="ti ti-camera" aria-hidden="true"></i></button>
@@ -282,18 +345,32 @@ function renderList(){
     `<div class="general-item${selectedGeneral===g.name?' sel':''}" onclick="selectGeneral('${g.name}')">${g.name}</div>`
   ).join('');
 }
+function openSheet(){
+  document.getElementById('left-panel').classList.add('open');
+  document.getElementById('sheet-backdrop').classList.add('open');
+}
+function closeSheet(){
+  document.getElementById('left-panel').classList.remove('open');
+  document.getElementById('sheet-backdrop').classList.remove('open');
+}
 function selectGeneral(name){ selectedGeneral=name; renderList(); }
 function confirmSelection(){
   if(!selectedGeneral || !selectedSlot) return;
   const g = GENERALS.find(x=>x.name===selectedGeneral);
   if(!g) return;
   slots[selectedSlot.col][selectedSlot.role] = g;
+  selectedSlot = null;
+  selectedGeneral = null;
   render();
+  renderList();
+  closeSheet();
 }
 function toggleSwap(){
   swapMode=!swapMode;
   swapFirst=null;
   document.getElementById('swap-status').textContent=swapMode?'ON':'OFF';
+  document.getElementById('swap-icon-btn').classList.toggle('active',swapMode);
+  if(swapMode) closeSheet();
   render();
 }
 function clickSlot(col,role){
@@ -312,13 +389,15 @@ function clickSlot(col,role){
   }
   if(selectedSlot && selectedSlot.col===col && selectedSlot.role===role){
     selectedSlot = null;
+    closeSheet();
   }else{
     selectedSlot = {col,role};
+    openSheet();
   }
   render();
   if(selectedSlot){
     const input = document.getElementById('search-input');
-    if(input) input.focus();
+    if(input) setTimeout(()=>input.focus(),260);
   }
 }
 function cycleTiming(col){ timings[col]=(timings[col]+1)%TIMING_OPTS.length; render(); }
