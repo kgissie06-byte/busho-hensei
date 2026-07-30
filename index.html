@@ -240,6 +240,41 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 }
 .icon-btn.on{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
 .icon-btn.swap-icon-btn{display:none}
+
+/* 編成データ貼り付け（復元）モーダル */
+.load-modal-backdrop{
+  position:fixed;inset:0;background:rgba(0,0,0,0.45);
+  opacity:0;pointer-events:none;transition:opacity .2s ease;
+  z-index:1000;display:flex;align-items:center;justify-content:center;
+  padding:20px;
+}
+.load-modal-backdrop.open{opacity:1;pointer-events:auto}
+.load-modal{
+  background:var(--bg);border-radius:10px;padding:16px;
+  width:100%;max-width:420px;
+  box-shadow:0 8px 30px rgba(0,0,0,0.3);
+  display:flex;flex-direction:column;gap:10px;
+}
+.load-modal-title{font-size:14px;font-weight:600;color:var(--text)}
+.load-modal-textarea{
+  width:100%;min-height:120px;padding:8px;font-size:13px;
+  border:1px solid var(--card-border);border-radius:6px;
+  background:#f8f4ea;color:var(--text);resize:vertical;
+  font-family:monospace;line-height:1.4;
+}
+.load-modal-textarea:focus{outline:none;border-color:var(--blue)}
+.load-modal-buttons{display:flex;gap:8px;justify-content:flex-end}
+.load-modal-btn{
+  padding:7px 14px;border-radius:4px;font-size:13px;font-weight:500;
+  cursor:pointer;border:1px solid var(--card-border);
+}
+.load-modal-btn.primary{background:#4a7a30;color:#fff;border-color:#4a7a30}
+.load-modal-btn.primary:hover{background:#3a6a20}
+.load-modal-btn.secondary{background:var(--card);color:var(--text)}
+.load-modal-btn.secondary:hover{background:var(--card-hover)}
+@media (max-width: 768px){
+  .load-modal-textarea{font-size:16px} /* iOS自動ズーム防止 */
+}
 </style>
 </head>
 <body>
@@ -281,11 +316,24 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
       </button>
       <button class="icon-btn" onclick="newFormation()" title="新規作成"><i class="ti ti-plus" aria-hidden="true"></i></button>
       <button class="icon-btn" onclick="saveScreenshot()" title="編成をスクリーンショット保存"><i class="ti ti-camera" aria-hidden="true"></i></button>
-      <button class="icon-btn" onclick="saveFormation()" title="編成をコピー"><i class="ti ti-upload" aria-hidden="true"></i></button>
+      <button class="icon-btn" onclick="saveFormation()" title="編成をコピー"><i class="ti ti-download" aria-hidden="true"></i></button>
+      <button class="icon-btn" onclick="openLoadModal()" title="編成データを貼り付けて復元"><i class="ti ti-upload" aria-hidden="true"></i></button>
     </div>
   </div>
 
   <div id="tab-point" style="display:none">ポイント効率機能（未実装）</div>
+</div>
+
+<div class="load-modal-backdrop" id="load-modal-backdrop" onclick="closeLoadModal()">
+  <div class="load-modal" onclick="event.stopPropagation()">
+    <div class="load-modal-title">編成データを貼り付けて復元</div>
+    <textarea class="load-modal-textarea" id="load-modal-textarea"
+      placeholder="コピーした編成データ（SLOT_FORMATION_V1:... から始まる文字列）をここに貼り付けてください"></textarea>
+    <div class="load-modal-buttons">
+      <button class="load-modal-btn secondary" onclick="closeLoadModal()">キャンセル</button>
+      <button class="load-modal-btn primary" onclick="restoreFromModal()">復元</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -641,7 +689,39 @@ function loadFormation(data){
   render();
 }
 
+function openLoadModal(){
+  document.getElementById('load-modal-backdrop').classList.add('open');
+  const ta = document.getElementById('load-modal-textarea');
+  ta.value = '';
+  setTimeout(()=>ta.focus(), 50);
+}
+function closeLoadModal(){
+  document.getElementById('load-modal-backdrop').classList.remove('open');
+}
+function restoreFromModal(){
+  const ta = document.getElementById('load-modal-textarea');
+  const text = ta.value.trim();
+  if(!text){
+    alert('編成データを貼り付けてください。');
+    return;
+  }
+  if(!text.startsWith(FORMATION_PREFIX)){
+    alert(`編成データの形式が正しくありません。「${FORMATION_PREFIX}」から始まる文字列を貼り付けてください。`);
+    return;
+  }
+  try{
+    const json = base64ToUtf8(text.slice(FORMATION_PREFIX.length));
+    const data = JSON.parse(json);
+    loadFormation(data);
+    closeLoadModal();
+  }catch(err){
+    console.error(err);
+    alert('編成データの読み込みに失敗しました。コピーした文字列が正しいか確認してください。');
+  }
+}
+
 document.addEventListener('paste', (e) => {
+  if(e.target && e.target.id === 'load-modal-textarea') return; // テキストエリア内は通常のペースト動作に任せる
   const text = (e.clipboardData || window.clipboardData) ? (e.clipboardData || window.clipboardData).getData('text') : '';
   if(!text || !text.startsWith(FORMATION_PREFIX)) return; // 通常のペーストは邪魔しない
   e.preventDefault();
