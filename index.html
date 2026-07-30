@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>武将編成</title>
+<title>編成</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -67,20 +67,18 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 
 /* スロットグリッド：狭い時は縮む・広い時は上限で中央寄せ */
 .slots-grid-wrap{
-  flex:1;min-height:0;
-  display:flex;align-items:flex-start;justify-content:center;
-  overflow-x:auto;
+  flex:1 1 0;min-height:0;
+  display:flex;align-items:flex-start;justify-content:flex-start;
+  overflow-x:auto;overflow-y:auto;
 }
 .slots-grid{
   display:flex;gap:6px;
   align-items:flex-start;
-  /* 上限680px。それ以下は横幅いっぱいに伸びる */
+  justify-content:space-between;
   width:100%;
-  max-width:1200px;
 }
 .slot-col{
-  /* 均等に伸縮、最大90px */
-  flex:110;min-width:0;max-width:100px;
+  flex:110;min-width:0;max-width:140px;
   display:flex;flex-direction:column;align-items:center;
   gap:3px;
 }
@@ -112,6 +110,19 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 .slot-spacer{width:100%;aspect-ratio:1/1;visibility:hidden}
 
 .col-divider{width:80%;height:1px;background:var(--card-border);margin:2px 0;opacity:0.5}
+
+/* プレビューエリア（軍ごとのリスポーン位置画像を表示予定） */
+.preview-panel{
+  flex-shrink:0;
+  height:150px;
+  border:1px solid var(--card-border);
+  background:var(--card);
+  border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--text-muted);font-size:12px;
+  overflow:hidden;
+}
+.preview-panel img{max-width:100%;max-height:100%;object-fit:contain}
 
 /* 行動ボタン */
 .action-btn{
@@ -168,6 +179,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
         <div class="slots-grid-wrap">
           <div class="slots-grid" id="slots-grid"></div>
         </div>
+        <div class="preview-panel" id="preview-panel">プレビュー(未実装)</div>
       </div>
     </div>
     <div class="bottom-bar">
@@ -225,9 +237,10 @@ async function fetchGenerals(){
 let slots = COLS.map(()=>({main:null,sub:null}));
 let timings  = COLS.map((_,i)=> i===5 ? null : 0);
 let policies = COLS.map((_,i)=> i===5 ? null : 0);
-let selectedSlot = {col:0,role:'main'};
+let selectedSlot = null;
 let selectedGeneral = null;
 let swapMode = false;
+let swapFirst = null;
 let filteredList = [...GENERALS];
 
 function switchTab(t){
@@ -257,20 +270,51 @@ function renderList(){
 }
 function selectGeneral(name){ selectedGeneral=name; renderList(); }
 function confirmSelection(){
-  if(!selectedGeneral) return;
+  if(!selectedGeneral || !selectedSlot) return;
   const g = GENERALS.find(x=>x.name===selectedGeneral);
   if(!g) return;
   slots[selectedSlot.col][selectedSlot.role] = g;
   render();
 }
-function toggleSwap(){ swapMode=!swapMode; document.getElementById('swap-status').textContent=swapMode?'ON':'OFF'; }
-function clickSlot(col,role){ selectedSlot={col,role}; render(); }
+function toggleSwap(){
+  swapMode=!swapMode;
+  swapFirst=null;
+  document.getElementById('swap-status').textContent=swapMode?'ON':'OFF';
+  render();
+}
+function clickSlot(col,role){
+  if(swapMode){
+    if(!swapFirst){
+      swapFirst = {col,role};
+    }else{
+      const a=swapFirst, b={col,role};
+      const tmp = slots[a.col][a.role];
+      slots[a.col][a.role] = slots[b.col][b.role];
+      slots[b.col][b.role] = tmp;
+      swapFirst = null;
+    }
+    render();
+    return;
+  }
+  if(selectedSlot && selectedSlot.col===col && selectedSlot.role===role){
+    selectedSlot = null;
+  }else{
+    selectedSlot = {col,role};
+  }
+  render();
+  if(selectedSlot){
+    const input = document.getElementById('search-input');
+    if(input) input.focus();
+  }
+}
 function cycleTiming(col){ timings[col]=(timings[col]+1)%TIMING_OPTS.length; render(); }
 function cyclePolicy(col){ policies[col]=(policies[col]+1)%POLICY_OPTS.length; render(); }
 
 function slotCardHTML(col,role){
   const g = slots[col][role];
-  const isSel = selectedSlot.col===col && selectedSlot.role===role;
+  const isSel = swapMode
+    ? !!(swapFirst && swapFirst.col===col && swapFirst.role===role)
+    : !!(selectedSlot && selectedSlot.col===col && selectedSlot.role===role);
   const selClass = isSel ? ' selected' : '';
   if(g){
     return `<div class="slot-card${selClass}" onclick="clickSlot(${col},'${role}')">
