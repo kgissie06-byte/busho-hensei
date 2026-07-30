@@ -394,12 +394,37 @@ function saveScreenshot(){
     const nameInput = document.querySelector('.formation-name-input');
     const formationName = (nameInput && nameInput.value.trim()) || '編成';
     const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
-    const link = document.createElement('a');
-    link.download = `${formationName}_${stamp}.png`;
-    link.href = canvas.toDataURL('image/png');
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    const fileName = `${formationName}_${stamp}.png`;
+
+    canvas.toBlob(async (blob) => {
+      if(!blob){
+        alert('スクリーンショットの保存に失敗しました。');
+        return;
+      }
+      const file = new File([blob], fileName, {type:'image/png'});
+
+      // スマホ：共有シート経由で「写真に保存」できるようにする
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        try{
+          await navigator.share({files:[file], title:formationName});
+          return;
+        }catch(err){
+          if(err && err.name === 'AbortError') return; // 共有シートをキャンセルした場合は何もしない
+          console.error(err);
+          // 共有に失敗した場合は下のダウンロード方式にフォールバック
+        }
+      }
+
+      // PC・非対応ブラウザ：通常のダウンロード
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = fileName;
+      link.href = url;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }, 'image/png');
   }).catch(err => {
     console.error(err);
     alert('スクリーンショットの保存に失敗しました。');
