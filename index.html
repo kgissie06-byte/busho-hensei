@@ -126,7 +126,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 
 .col-divider{width:80%;height:1px;background:var(--card-border);margin:2px 0;opacity:0.5}
 
-/* プレビューエリア（軍ごとのリスポーン位置画像を表示予定） */
+/* プレビューエリア（ステージ画像に各軍の大将アイコンを重ねて表示） */
 .preview-panel{
   flex-shrink:0;
   height:150px;
@@ -134,12 +134,33 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
   background:var(--card);
   border-radius:6px;
   display:none;
-  align-items:center;justify-content:center;
+  flex-direction:column;
   color:var(--text-muted);font-size:12px;
   overflow:hidden;
 }
-.preview-panel.open{display:flex}
-.preview-panel img{max-width:100%;max-height:100%;object-fit:contain}
+.preview-panel.open{display:flex;height:min(46vh,420px)}
+
+.preview-controls{
+  flex-shrink:0;display:flex;gap:6px;align-items:center;
+  padding:6px 8px;border-bottom:1px solid var(--card-border);background:var(--panel);
+}
+.preview-controls select{
+  flex:1;min-width:0;padding:5px 7px;font-size:12px;border:1px solid var(--card-border);
+  border-radius:4px;background:#f8f4ea;color:var(--text);
+}
+
+.preview-stage-outer{
+  flex:1;min-height:0;display:flex;align-items:center;justify-content:center;
+  background:repeating-conic-gradient(#e4ddc8 0% 25%, #d9d1b6 0% 50%) 50%/16px 16px;
+}
+.preview-stage-wrap{position:relative;height:100%;max-width:100%;margin:0 auto}
+.preview-stage-wrap img#preview-stage-img{width:100%;height:100%;display:block;object-fit:fill}
+.preview-overlay{position:absolute;inset:0;pointer-events:none}
+.preview-icon{
+  position:absolute;border-radius:5px;object-fit:cover;
+  border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.4);
+}
+.preview-empty{font-size:12px;color:var(--text-muted);padding:10px;text-align:center}
 
 /* 行動ボタン */
 .action-btn{
@@ -304,7 +325,18 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
         <div class="slots-grid-wrap">
           <div class="slots-grid" id="slots-grid"></div>
         </div>
-        <div class="preview-panel" id="preview-panel">プレビュー(未実装)</div>
+        <div class="preview-panel" id="preview-panel">
+          <div class="preview-controls">
+            <select id="stage-select" onchange="onStageSelectChange()"></select>
+          </div>
+          <div class="preview-stage-outer" id="preview-stage-outer">
+            <div class="preview-empty" id="preview-empty">ステージを選択してください</div>
+            <div class="preview-stage-wrap" id="preview-stage-wrap" style="display:none">
+              <img id="preview-stage-img" alt="ステージ画像" onerror="onStageImageError()">
+              <div class="preview-overlay" id="preview-overlay"></div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     <div class="bottom-bar">
@@ -349,6 +381,70 @@ const COLS = [
 
 const TIMING_OPTS = ['オフ','交戦時','士気最大時'];
 const POLICY_OPTS = ['オフ','要所防衛','部隊優先','全部隊撃破','全敵将撃破','要所優先','部隊停止'];
+
+// ===================================================================
+// ステージ配置データ（プレビュー機能）
+// ===================================================================
+const STAGE_LAYOUTS = {
+  '秦国三大天➅': {
+    image: 'stages/shin_sandaiten6.png',
+    points: {
+      main: { x: 192, y: 129, size: 60 }, // 総大将
+      army1: { x: 127, y: 79, size: 60 }, // 第1軍
+      army2: { x: 256, y: 182, size: 60 }, // 第2軍
+      army3: { x: 58, y: 127, size: 60 }, // 第3軍
+      army4: { x: 125, y: 186, size: 60 }, // 第4軍
+      reinforce: { x: 191, y: 247, size: 60 }, // 援軍
+    }
+  },
+  '秦国三大天➆': {
+    image: 'stages/shin_sandaiten7.png',
+    points: {
+      main: { x: 206, y: 130, size: 60 }, // 総大将
+      army1: { x: 143, y: 88, size: 60 }, // 第1軍
+      army2: { x: 274, y: 176, size: 60 }, // 第2軍
+      army3: { x: 84, y: 151, size: 60 }, // 第3軍
+      army4: { x: 152, y: 196, size: 60 }, // 第4軍
+      reinforce: { x: 219, y: 238, size: 60 }, // 援軍
+    }
+  },
+  '秦国三大天➇': {
+    image: 'stages/shin_sandaiten8.png',
+    points: {
+      main: { x: 333, y: 85, size: 70 }, // 総大将
+      army1: { x: 409, y: 131, size: 70 }, // 第1軍
+      army2: { x: 726, y: 304, size: 70 }, // 第2軍
+      army3: { x: 76, y: 207, size: 70 }, // 第3軍
+      army4: { x: 526, y: 475, size: 70 }, // 第4軍
+      reinforce: { x: 714, y: 598, size: 70 }, // 援軍
+    }
+  },
+  '秦国三大天➈': {
+    image: 'stages/shin_sandaiten9.png',
+    points: {
+      main: { x: 456, y: 195, size: 60 }, // 総大将
+      army1: { x: 405, y: 132, size: 60 }, // 第1軍
+      army2: { x: 509, y: 259, size: 60 }, // 第2軍
+      army3: { x: 353, y: 71, size: 60 }, // 第3軍
+      army4: { x: 571, y: 319, size: 60 }, // 第4軍
+      reinforce: { x: 96, y: 217, size: 60 }, // 援軍
+    }
+  },
+  '秦国三大天➉': {
+    image: 'stages/shin_sandaiten10.png',
+    points: {
+      main: { x: 276, y: 199, size: 65 }, // 総大将
+      army1: { x: 218, y: 129, size: 65 }, // 第1軍
+      army2: { x: 335, y: 271, size: 65 }, // 第2軍
+      army3: { x: 171, y: 61, size: 65 }, // 第3軍
+      army4: { x: 385, y: 345, size: 65 }, // 第4軍
+      reinforce: { x: 207, y: 245, size: 65 }, // 援軍
+    }
+  },
+};
+// COLS配列のインデックス(0〜6)と STAGE_LAYOUTS.points のキーの対応表
+// (5番目=軍師 は null なのでマップ上には表示しない)
+const COL_POINT_KEY = ['main','army1','army2','army3','army4', null, 'reinforce'];
 
 // ===== キャラデータ取得（自前の /api/chars 経由。Supabaseには直接アクセスしない） =====
 
@@ -467,10 +563,76 @@ function closeSheet(){
   document.getElementById('sheet-backdrop').classList.remove('open');
 }
 let previewOpen = false;
+let currentStageKey = null;
+
 function togglePreview(){
   previewOpen = !previewOpen;
   document.getElementById('preview-panel').classList.toggle('open', previewOpen);
   document.getElementById('preview-toggle-btn').classList.toggle('on', previewOpen);
+  if(previewOpen){
+    populateStageSelect();
+    renderPreviewOverlay();
+  }
+}
+
+function populateStageSelect(){
+  const sel = document.getElementById('stage-select');
+  const keys = Object.keys(STAGE_LAYOUTS);
+  sel.innerHTML = keys.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
+  if(!currentStageKey || !keys.includes(currentStageKey)){
+    currentStageKey = keys[0] || null;
+  }
+  sel.value = currentStageKey || '';
+}
+
+function onStageSelectChange(){
+  currentStageKey = document.getElementById('stage-select').value || null;
+  renderPreviewOverlay();
+}
+
+function onStageImageError(){
+  document.getElementById('preview-stage-wrap').style.display = 'none';
+  const empty = document.getElementById('preview-empty');
+  empty.textContent = 'ステージ画像の読み込みに失敗しました（stagesフォルダに画像があるか確認してください）';
+  empty.style.display = 'flex';
+}
+
+function renderPreviewOverlay(){
+  const empty = document.getElementById('preview-empty');
+  const wrap = document.getElementById('preview-stage-wrap');
+  const img = document.getElementById('preview-stage-img');
+  const overlay = document.getElementById('preview-overlay');
+
+  const layout = currentStageKey ? STAGE_LAYOUTS[currentStageKey] : null;
+  if(!layout){
+    empty.textContent = 'ステージを選択してください';
+    empty.style.display = 'flex';
+    wrap.style.display = 'none';
+    return;
+  }
+
+  const ref = layout.ref;
+  wrap.style.aspectRatio = `${ref.width} / ${ref.height}`;
+  if(img.getAttribute('src') !== layout.image){
+    img.src = layout.image;
+  }
+  empty.style.display = 'none';
+  wrap.style.display = 'block';
+
+  overlay.innerHTML = COL_POINT_KEY.map((key, col) => {
+    if(!key) return ''; // 軍師はマップ上に表示しない
+    const p = layout.points[key];
+    if(!p) return '';
+    const g = slots[col] && slots[col].main;
+    if(!g) return ''; // その役職が未選択なら表示しない
+    const leftPct = (p.x - p.size/2) / ref.width * 100;
+    const topPct  = (p.y - p.size/2) / ref.height * 100;
+    const wPct    = p.size / ref.width * 100;
+    const hPct    = p.size / ref.height * 100;
+    const src = safeImgUrl(g.img) || placeholderImg(g.name);
+    return `<img class="preview-icon" src="${escapeHtml(src)}" alt="${escapeHtml(g.name)}"
+      style="left:${leftPct}%;top:${topPct}%;width:${wPct}%;height:${hPct}%">`;
+  }).join('');
 }
 
 function saveScreenshot(){
@@ -660,6 +822,7 @@ function render(){
       `}
     </div>
   `).join('');
+  if(previewOpen) renderPreviewOverlay();
 }
 
 // ===== 編成のコピー＆貼り付け復元 =====
