@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>編成</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <!-- iPhoneホーム画面追加用アイコン -->
 <link rel="apple-touch-icon" href="icon/apple-touch-icon.png">
@@ -278,7 +279,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
         <i class="ti ti-arrows-left-right" aria-hidden="true"></i>
       </button>
       <button class="icon-btn"><i class="ti ti-plus" aria-hidden="true"></i></button>
-      <button class="icon-btn"><i class="ti ti-camera" aria-hidden="true"></i></button>
+      <button class="icon-btn" onclick="saveScreenshot()" title="編成をスクリーンショット保存"><i class="ti ti-camera" aria-hidden="true"></i></button>
       <button class="icon-btn"><i class="ti ti-upload" aria-hidden="true"></i></button>
     </div>
   </div>
@@ -374,6 +375,35 @@ function togglePreview(){
   previewOpen = !previewOpen;
   document.getElementById('preview-panel').classList.toggle('open', previewOpen);
   document.getElementById('preview-toggle-btn').classList.toggle('on', previewOpen);
+}
+
+function saveScreenshot(){
+  const target = document.getElementById('slots-grid');
+  if(!target || typeof html2canvas === 'undefined'){
+    alert('スクリーンショット機能の読み込みに失敗しました。通信環境を確認してください。');
+    return;
+  }
+  const bgColor = getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#f0ebe0';
+  html2canvas(target, {
+    backgroundColor: bgColor,
+    scale: Math.max(window.devicePixelRatio || 1, 2),
+    useCORS: true,
+    width: target.scrollWidth,
+    height: target.scrollHeight
+  }).then(canvas => {
+    const nameInput = document.querySelector('.formation-name-input');
+    const formationName = (nameInput && nameInput.value.trim()) || '編成';
+    const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+    const link = document.createElement('a');
+    link.download = `${formationName}_${stamp}.png`;
+    link.href = canvas.toDataURL('image/png');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }).catch(err => {
+    console.error(err);
+    alert('スクリーンショットの保存に失敗しました。');
+  });
 }
 function selectGeneral(name){ selectedGeneral=name; renderList(); }
 function confirmSelection(){
