@@ -356,6 +356,12 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 .point-defeat-imgs{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
 .point-defeat-img{width:26px;height:26px;border-radius:4px;object-fit:cover;border:1px solid var(--card-border)}
 .point-defeat-placeholder{color:var(--blue);font-size:12px;text-decoration:underline}
+.point-time-input{
+  width:56px;padding:3px 4px;font-size:12px;text-align:center;
+  border:1px solid var(--card-border);background:#f8f4ea;
+  border-radius:4px;color:var(--text);
+}
+.point-time-input:focus{outline:none;border-color:var(--blue)}
 
 /* 敵選択モーダル */
 .enemy-modal-backdrop{
@@ -830,7 +836,14 @@ const POINT_ARCS = [
 //   （敵ポイント合計にのみ倍率適用）の算出に使用する。
 let pointSelections = {};
 let pointClearCounts = {};
+// pointTimes: ユーザーが入力したタイム（キーは pointKey と同じ形式）
+let pointTimes = {};
 let enemyModalState = null; // { arcKey, stageIdx, enemies, checked:Set }
+
+// タイム入力欄の値を保持する（他の値に影響しないため再描画は行わない）
+function setPointTime(arcKey, stageIdx, value){
+  pointTimes[pointKey(arcKey, stageIdx)] = value;
+}
 
 const CLEAR_COUNT_OPTS = ['1回','2回','3回','4回','5回','6回','7回','8回','9回','10回','11回以上'];
 
@@ -993,14 +1006,23 @@ function calcSortieCountBonus(arcKey, stageIdx, stage){
   return enemyPointSum * sortieCountBonusMultiplier(count);
 }
 
-// 撃破Pt（最終獲得Pt）= 通常ポイント（選択した敵ポイント合計 × (1 + 討伐アイテム倍率 + 盟友倍率 + 一番槍倍率)）
-//                        ＋ 出撃回数ボーナス
-// 端数は最後にfloor。
-function calcDefeatPt(arcKey, stageIdx, stage){
+// 通常ポイント（端数処理前）＝ 選択した敵ポイント合計 × (1 + 討伐アイテム倍率 + 盟友倍率 + 一番槍倍率)
+function normalPtRaw(arcKey, stageIdx, stage){
   const enemyPointSum = selectedEnemyPointSum(arcKey, stageIdx, stage);
-  const normalPt = enemyPointSum * MULTIPLIER_FIRST_RUN;
+  return enemyPointSum * MULTIPLIER_FIRST_RUN;
+}
+
+// 撃破Pt ＝ 一番槍ボーナス・討伐アイテム・盟友集結の倍率のみを含んだポイント
+//        （出撃回数ボーナスは含まない）。端数はfloor。
+function calcDefeatPt(arcKey, stageIdx, stage){
+  return Math.floor(normalPtRaw(arcKey, stageIdx, stage));
+}
+
+// クリアPt ＝ 今までの撃破Pt（＝撃破Pt＋出撃回数ボーナス）
+// 端数は合算後に最後にfloor（旧calcDefeatPtと同じ計算式）。
+function calcClearPt(arcKey, stageIdx, stage){
   const sortieBonus = calcSortieCountBonus(arcKey, stageIdx, stage);
-  return Math.floor(normalPt + sortieBonus);
+  return Math.floor(normalPtRaw(arcKey, stageIdx, stage) + sortieBonus);
 }
 
 function renderPointTab(){
@@ -1008,15 +1030,18 @@ function renderPointTab(){
   const arc = POINT_ARCS.find(a => a.key === select.value) || POINT_ARCS[0];
   const stages = POINT_DATA[arc.label] || [];
 
-  // 撃破Ptは実計算（選択した敵ポイント合計×倍率＋出撃回数ボーナス、floor）。
-  // クリアPt・Pt/s・タイムはまだダミー値（ポイント計算は今回対象外）
-  const rows = stages.map((s, i) => ({
-    stage: s.stage,
-    defeatPt: calcDefeatPt(arc.key, i, s),
-    clearPt: 300 + i*45,
-    pps: (12.5 + i*0.8).toFixed(1),
-    time: `0${1 + (i%3)}:${(10 + i*7)%60 < 10 ? '0' : ''}${(10 + i*7)%60}`,
-  }));
+  // 撃破Pt・クリアPtは実計算（floor済み）。Pt/sはまだダミー値、タイムは入力欄（ユーザー入力を保持）。
+  const rows = stages.map((s, i) => {
+    const key = pointKey(arc.key, i);
+    const dummyTime = `0${1 + (i%3)}:${(10 + i*7)%60 < 10 ? '0' : ''}${(10 + i*7)%60}`;
+    return {
+      stage: s.stage,
+      defeatPt: calcDefeatPt(arc.key, i, s),
+      clearPt: calcClearPt(arc.key, i, s),
+      pps: (12.5 + i*0.8).toFixed(1),
+      time: pointTimes[key] !== undefined ? pointTimes[key] : dummyTime,
+    };
+  });
 
   const totalDefeat = rows.reduce((sum,r)=>sum + r.defeatPt, 0);
   const totalClear = rows.reduce((sum,r)=>sum + r.clearPt, 0);
@@ -1028,7 +1053,8 @@ function renderPointTab(){
       <td>${r.defeatPt.toLocaleString()}</td>
       <td>${r.clearPt.toLocaleString()}</td>
       <td>${r.pps}</td>
-      <td>${r.time}</td>
+      <td><input type="text" class="point-time-input" value="${escapeHtml(r.time)}" placeholder="00:00"
+        oninput="setPointTime('${arc.key}',${i},this.value)"></td>
     </tr>
   `).join('') + `
     <tr class="point-total-row">
@@ -1041,11 +1067,10 @@ function renderPointTab(){
     </tr>
   `;
 
-  // 右下カード：1回目Ptは一番槍ボーナスを含む撃破Ptの合計（＝totalDefeat）。
+  // 右下カード：1回目Ptは一番槍ボーナス・出撃回数ボーナスを含むクリアPtの合計（＝totalClear）。
   // 2回目・3回目Ptは一番槍ボーナスを含まない倍率で選択済み敵ポイント合計から算出する。
-  // クリアPtはまだダミー値のため、run系はいずれも撃破Ptのみを対象とする（今回対象外）。
   const totalEnemySum = totalSelectedEnemyPointSum(arc.key, stages);
-  const run1 = totalDefeat;
+  const run1 = totalClear;
   const run2 = Math.floor(totalEnemySum * MULTIPLIER_OTHER_RUN);
   const run3 = Math.floor(totalEnemySum * MULTIPLIER_OTHER_RUN);
   const runTotal = run1 + run2 + run3;
