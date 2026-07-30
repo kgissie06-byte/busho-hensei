@@ -332,7 +332,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
           <div class="preview-stage-outer" id="preview-stage-outer">
             <div class="preview-empty" id="preview-empty">ステージを選択してください</div>
             <div class="preview-stage-wrap" id="preview-stage-wrap" style="display:none">
-              <img id="preview-stage-img" alt="ステージ画像" onerror="onStageImageError()">
+              <img id="preview-stage-img" alt="ステージ画像" onload="onStageImageLoad()" onerror="onStageImageError()">
               <div class="preview-overlay" id="preview-overlay"></div>
             </div>
           </div>
@@ -385,6 +385,13 @@ const POLICY_OPTS = ['オフ','要所防衛','部隊優先','全部隊撃破','�
 // ===================================================================
 // ステージ配置データ（プレビュー機能）
 // ===================================================================
+// stagesフォルダに置いた画像ごとに、「総大将/第1〜4軍/援軍」アイコンの
+// 表示位置(x,y中心座標,一辺のサイズ)をpx単位で定義する。
+// 画像の解像度(ref)は自動取得するので書かなくてよい。
+// image: /stages/ 配下の画像ファイルへのパス
+// points のキーと編成スロットの対応:
+//   main = 総大将 / army1〜4 = 第1〜4軍 / reinforce = 援軍
+//   （軍師はマップ上に表示しないため対応キーなし）
 const STAGE_LAYOUTS = {
   '秦国三大天➅': {
     image: 'stages/shin_sandaiten6.png',
@@ -564,6 +571,7 @@ function closeSheet(){
 }
 let previewOpen = false;
 let currentStageKey = null;
+let stageImageNatural = { w: 0, h: 0 }; // 現在表示中のステージ画像の実ピクセルサイズ（onloadで自動取得）
 
 function togglePreview(){
   previewOpen = !previewOpen;
@@ -597,6 +605,12 @@ function onStageImageError(){
   empty.style.display = 'flex';
 }
 
+function onStageImageLoad(){
+  const img = document.getElementById('preview-stage-img');
+  stageImageNatural = { w: img.naturalWidth || 0, h: img.naturalHeight || 0 };
+  renderPreviewOverlay();
+}
+
 function renderPreviewOverlay(){
   const empty = document.getElementById('preview-empty');
   const wrap = document.getElementById('preview-stage-wrap');
@@ -610,25 +624,42 @@ function renderPreviewOverlay(){
     wrap.style.display = 'none';
     return;
   }
+  if(!layout.image || !layout.points){
+    console.error(`STAGE_LAYOUTS['${currentStageKey}'] の形式が正しくありません。image/pointsが揃っているか確認してください。`, layout);
+    empty.textContent = `「${currentStageKey}」の配置データが正しく設定されていません（image/pointsを確認してください）`;
+    empty.style.display = 'flex';
+    wrap.style.display = 'none';
+    return;
+  }
 
-  const ref = layout.ref;
-  wrap.style.aspectRatio = `${ref.width} / ${ref.height}`;
+  // 画像が切り替わるタイミングでは、実サイズが分かるまでアイコンを描画しない
   if(img.getAttribute('src') !== layout.image){
+    stageImageNatural = { w: 0, h: 0 };
     img.src = layout.image;
   }
   empty.style.display = 'none';
   wrap.style.display = 'block';
 
+  // 座標計算の基準は、アップロードされているステージ画像そのものの実ピクセルサイズ。
+  // (layout.ref を手書きする必要はない。もし書かれていれば画像読み込み完了までの仮値として使う)
+  const refW = stageImageNatural.w || (layout.ref && layout.ref.width) || 0;
+  const refH = stageImageNatural.h || (layout.ref && layout.ref.height) || 0;
+  if(!refW || !refH){
+    overlay.innerHTML = ''; // 画像読み込み中。onStageImageLoadで再描画される
+    return;
+  }
+  wrap.style.aspectRatio = `${refW} / ${refH}`;
+
   overlay.innerHTML = COL_POINT_KEY.map((key, col) => {
     if(!key) return ''; // 軍師はマップ上に表示しない
     const p = layout.points[key];
-    if(!p) return '';
+    if(!p || !Number.isFinite(p.x) || !Number.isFinite(p.y) || !Number.isFinite(p.size)) return '';
     const g = slots[col] && slots[col].main;
     if(!g) return ''; // その役職が未選択なら表示しない
-    const leftPct = (p.x - p.size/2) / ref.width * 100;
-    const topPct  = (p.y - p.size/2) / ref.height * 100;
-    const wPct    = p.size / ref.width * 100;
-    const hPct    = p.size / ref.height * 100;
+    const leftPct = (p.x - p.size/2) / refW * 100;
+    const topPct  = (p.y - p.size/2) / refH * 100;
+    const wPct    = p.size / refW * 100;
+    const hPct    = p.size / refH * 100;
     const src = safeImgUrl(g.img) || placeholderImg(g.name);
     return `<img class="preview-icon" src="${escapeHtml(src)}" alt="${escapeHtml(g.name)}"
       style="left:${leftPct}%;top:${topPct}%;width:${wPct}%;height:${hPct}%">`;
