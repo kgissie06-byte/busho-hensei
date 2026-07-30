@@ -1379,6 +1379,8 @@ async function init(){
     GENERALS = await fetchGenerals();
     filteredList = [...GENERALS];
     renderList();
+    STAGE_LAYOUTS = await fetchStageLayouts();
+    POINT_DATA = await fetchPointData();
   }catch(e){
     console.error(e);
     document.getElementById('general-list').innerHTML =
