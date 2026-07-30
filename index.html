@@ -180,7 +180,6 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
   opacity:0;pointer-events:none;transition:opacity .2s ease;
   z-index:900;
 }
-.sheet-backdrop.open{opacity:1;pointer-events:auto}
 .sheet-header{display:none}
 
 /* ===== モバイル用レイアウト ===== */
@@ -196,6 +195,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
     padding:12px 14px 14px;
   }
   .left-panel.open{transform:translateY(0)}
+  .sheet-backdrop.open{opacity:1;pointer-events:auto}
   .sheet-header{
     display:flex;align-items:center;justify-content:space-between;
     margin-bottom:2px;
@@ -256,7 +256,9 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
           <span class="sheet-title">武将を選択</span>
           <button class="sheet-close" onclick="closeSheet()">✕</button>
         </div>
-        <input class="search-box" type="text" placeholder="武将名を入力" id="search-input" oninput="filterList()">
+        <input class="search-box" type="text" placeholder="武将名を入力" id="search-input"
+          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+          oninput="filterList()" onkeydown="handleSearchKeydown(event)">
         <div class="general-list" id="general-list"></div>
         <button class="confirm-btn" onclick="confirmSelection()">確定</button>
         <button class="swap-btn" onclick="toggleSwap()">入替 <span id="swap-status">OFF</span></button>
@@ -278,7 +280,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
       <button class="icon-btn swap-icon-btn" id="swap-icon-btn" onclick="toggleSwap()" title="入替">
         <i class="ti ti-arrows-left-right" aria-hidden="true"></i>
       </button>
-      <button class="icon-btn"><i class="ti ti-plus" aria-hidden="true"></i></button>
+      <button class="icon-btn" onclick="newFormation()" title="新規作成"><i class="ti ti-plus" aria-hidden="true"></i></button>
       <button class="icon-btn" onclick="saveScreenshot()" title="編成をスクリーンショット保存"><i class="ti ti-camera" aria-hidden="true"></i></button>
       <button class="icon-btn" onclick="saveFormation()" title="編成をコピー"><i class="ti ti-upload" aria-hidden="true"></i></button>
     </div>
@@ -350,7 +352,31 @@ function filterList(){
   filteredList = !q ? [...GENERALS] : GENERALS.filter(g =>
     g.name.includes(raw) || g.yomi.includes(q)
   );
+  selectedGeneral = null;
   renderList();
+}
+function handleSearchKeydown(e){
+  if(e.key === 'Tab'){
+    if(filteredList.length === 0) return; // 候補が無ければ通常のTab移動に任せる
+    e.preventDefault();
+    let idx = filteredList.findIndex(g => g.name === selectedGeneral);
+    if(e.shiftKey){
+      idx = idx <= 0 ? filteredList.length - 1 : idx - 1;
+    }else{
+      idx = (idx + 1) % filteredList.length;
+    }
+    selectedGeneral = filteredList[idx].name;
+    renderList();
+    const list = document.getElementById('general-list');
+    const el = list.children[idx];
+    if(el) el.scrollIntoView({block:'nearest'});
+  }else if(e.key === 'Enter'){
+    e.preventDefault();
+    if(!selectedGeneral && filteredList.length > 0){
+      selectedGeneral = filteredList[0].name;
+    }
+    confirmSelection();
+  }
 }
 function renderList(){
   const list = document.getElementById('general-list');
@@ -438,9 +464,33 @@ function confirmSelection(){
   slots[selectedSlot.col][selectedSlot.role] = g;
   selectedSlot = null;
   selectedGeneral = null;
+  const searchInput = document.getElementById('search-input');
+  if(searchInput) searchInput.value = '';
+  filteredList = [...GENERALS];
   render();
   renderList();
   closeSheet();
+}
+function newFormation(){
+  if(!confirm('現在の編成をリセットして新規作成しますか？')) return;
+  slots = COLS.map(()=>({main:null,sub:null}));
+  timings  = COLS.map((_,i)=> i===5 ? null : 0);
+  policies = COLS.map((_,i)=> i===5 ? null : 0);
+  selectedSlot = null;
+  selectedGeneral = null;
+  swapFirst = null;
+  swapMode = false;
+  document.getElementById('swap-status').textContent = 'OFF';
+  const swapBtn = document.getElementById('swap-icon-btn');
+  if(swapBtn) swapBtn.classList.remove('on');
+  const nameInput = document.querySelector('.formation-name-input');
+  if(nameInput) nameInput.value = '';
+  const searchInput = document.getElementById('search-input');
+  if(searchInput) searchInput.value = '';
+  filteredList = [...GENERALS];
+  closeSheet();
+  render();
+  renderList();
 }
 function toggleSwap(){
   swapMode=!swapMode;
