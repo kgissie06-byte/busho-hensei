@@ -193,7 +193,60 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 .icon-btn:hover{background:var(--card-hover)}
 
 /* ポイント効率タブ */
-#tab-point{flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:14px}
+#tab-point{flex:1;display:flex;flex-direction:column;min-height:0}
+.point-wrap{flex:1;display:flex;flex-direction:column;min-height:0;padding:10px;gap:10px;overflow:hidden}
+.point-header{flex-shrink:0;display:flex;align-items:center;gap:8px}
+.point-header-label{font-size:12px;color:var(--text-muted)}
+.point-select{
+  padding:6px 8px;font-size:13px;
+  border:1px solid var(--card-border);background:#f8f4ea;
+  border-radius:4px;color:var(--text);min-width:140px;
+}
+.point-select:focus{outline:none;border-color:var(--blue)}
+
+.point-body{flex:1;display:flex;gap:10px;min-height:0}
+.point-table-area{
+  flex:1;min-width:0;overflow:auto;
+  background:#f8f4ea;border:1px solid var(--card-border);border-radius:6px;
+}
+.point-table{width:100%;border-collapse:collapse;font-size:12px}
+.point-table th{
+  position:sticky;top:0;z-index:1;
+  background:var(--panel);color:var(--text);
+  font-weight:600;text-align:center;
+  padding:7px 6px;border-bottom:1px solid var(--card-border);white-space:nowrap;
+}
+.point-table td{
+  padding:6px;text-align:center;color:var(--text);
+  border-bottom:1px solid #e0d8c0;white-space:nowrap;
+}
+.point-table tbody tr:hover{background:var(--card-hover)}
+.point-table td.point-cell-stage{text-align:left;color:var(--text)}
+.point-table tr.point-total-row{background:var(--card);font-weight:600}
+.point-table tr.point-total-row td{border-top:1.5px solid var(--card-border);border-bottom:none}
+.point-table tr.point-total-row td.point-cell-empty{color:var(--text-muted)}
+
+.point-side{
+  width:190px;flex-shrink:0;
+  display:flex;flex-direction:column;justify-content:flex-end;gap:8px;min-height:0;
+}
+.point-card{
+  background:var(--card);border:1.5px solid var(--card-border);border-radius:6px;
+  padding:8px 10px;display:flex;align-items:center;justify-content:space-between;
+}
+.point-card-label{font-size:11px;color:var(--text-muted)}
+.point-card-value{font-size:15px;font-weight:600;color:var(--text)}
+.point-card.point-card-total{background:var(--blue-bg);border-color:var(--blue)}
+.point-card.point-card-total .point-card-label{color:var(--blue)}
+.point-card.point-card-total .point-card-value{color:var(--blue)}
+
+@media (max-width: 768px){
+  .point-wrap{padding:8px;gap:8px}
+  .point-body{flex-direction:column;overflow:auto}
+  .point-table-area{flex:none;max-height:46vh}
+  .point-side{width:100%;flex-direction:row;flex-wrap:wrap}
+  .point-card{flex:1 1 45%}
+}
 
 /* シート用の背景（バックドロップ） */
 .sheet-backdrop{
@@ -296,6 +349,68 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 @media (max-width: 768px){
   .load-modal-textarea{font-size:16px} /* iOS自動ズーム防止 */
 }
+
+/* 撃破武将セル（クリックで敵選択モーダルを開く） */
+.point-cell-defeat{cursor:pointer;text-align:left}
+.point-cell-defeat:hover{background:var(--card-hover)}
+.point-defeat-imgs{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.point-defeat-img{width:26px;height:26px;border-radius:4px;object-fit:cover;border:1px solid var(--card-border)}
+.point-defeat-placeholder{color:var(--blue);font-size:12px;text-decoration:underline}
+
+/* 敵選択モーダル */
+.enemy-modal-backdrop{
+  position:fixed;inset:0;background:rgba(0,0,0,0.45);
+  opacity:0;pointer-events:none;transition:opacity .2s ease;
+  z-index:1000;display:flex;align-items:center;justify-content:center;
+  padding:20px;
+}
+.enemy-modal-backdrop.open{opacity:1;pointer-events:auto}
+.enemy-modal{
+  background:var(--bg);border-radius:10px;padding:16px;
+  width:100%;max-width:460px;max-height:80vh;
+  box-shadow:0 8px 30px rgba(0,0,0,0.3);
+  display:flex;flex-direction:column;gap:10px;overflow:hidden;
+}
+.enemy-modal-header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0}
+.enemy-modal-title{font-size:14px;font-weight:600;color:var(--text)}
+.enemy-modal-clear-select{
+  flex-shrink:0;padding:5px 7px;font-size:12px;
+  border:1px solid var(--card-border);background:#f8f4ea;
+  border-radius:4px;color:var(--text);
+}
+.enemy-modal-clear-select:focus{outline:none;border-color:var(--blue)}
+.enemy-modal-list{display:flex;flex-direction:row;flex-wrap:wrap;gap:10px;overflow-y:auto;min-height:0}
+.enemy-modal-item{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  width:76px;cursor:pointer;
+}
+.enemy-modal-card{
+  width:100%;aspect-ratio:1/1;border-radius:6px;
+  border:1.5px solid var(--card-border);background:var(--card);
+  position:relative;overflow:hidden;transition:border-color 0.15s;
+}
+.enemy-modal-item:hover .enemy-modal-card{border-color:#8899cc}
+.enemy-modal-card.checked{border:2.5px solid var(--card-selected);background:#dce8f8}
+.enemy-modal-card-img{width:100%;height:100%;object-fit:cover;display:block}
+.enemy-modal-checkmark{
+  position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:50%;
+  background:#fff;border:1.5px solid var(--card-border);
+  display:flex;align-items:center;justify-content:center;font-size:10px;color:transparent;
+}
+.enemy-modal-card.checked .enemy-modal-checkmark{background:var(--card-selected);border-color:var(--card-selected);color:#fff}
+.enemy-modal-name{
+  font-size:11px;color:var(--text);text-align:center;width:100%;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.enemy-modal-buttons{display:flex;gap:8px;justify-content:flex-end;flex-shrink:0}
+.enemy-modal-btn{
+  padding:7px 14px;border-radius:4px;font-size:13px;font-weight:500;
+  cursor:pointer;border:1px solid var(--card-border);
+}
+.enemy-modal-btn.primary{background:#4a7a30;color:#fff;border-color:#4a7a30}
+.enemy-modal-btn.primary:hover{background:#3a6a20}
+.enemy-modal-btn.secondary{background:var(--card);color:var(--text)}
+.enemy-modal-btn.secondary:hover{background:var(--card-hover)}
 </style>
 </head>
 <body>
@@ -353,7 +468,32 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
     </div>
   </div>
 
-  <div id="tab-point" style="display:none">ポイント効率機能（未実装）</div>
+  <div id="tab-point" style="display:none">
+    <div class="point-wrap">
+      <div class="point-header">
+        <span class="point-header-label">討伐編</span>
+        <select class="point-select" id="point-arc-select" onchange="renderPointTab()"></select>
+      </div>
+      <div class="point-body">
+        <div class="point-table-area">
+          <table class="point-table">
+            <thead>
+              <tr>
+                <th>戦場</th>
+                <th>撃破武将</th>
+                <th>撃破Pt</th>
+                <th>クリアPt</th>
+                <th>Pt/s</th>
+                <th>タイム</th>
+              </tr>
+            </thead>
+            <tbody id="point-table-body"></tbody>
+          </table>
+        </div>
+        <div class="point-side" id="point-side"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="load-modal-backdrop" id="load-modal-backdrop" onclick="closeLoadModal()">
@@ -364,6 +504,20 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
     <div class="load-modal-buttons">
       <button class="load-modal-btn secondary" onclick="closeLoadModal()">キャンセル</button>
       <button class="load-modal-btn primary" onclick="restoreFromModal()">復元</button>
+    </div>
+  </div>
+</div>
+
+<div class="enemy-modal-backdrop" id="enemy-modal-backdrop" onclick="closeEnemyModal()">
+  <div class="enemy-modal" onclick="event.stopPropagation()">
+    <div class="enemy-modal-header">
+      <div class="enemy-modal-title" id="enemy-modal-title"></div>
+      <select class="enemy-modal-clear-select" id="enemy-modal-clear-select" onchange="setEnemyModalClearCount(this.value)"></select>
+    </div>
+    <div class="enemy-modal-list" id="enemy-modal-list"></div>
+    <div class="enemy-modal-buttons">
+      <button class="enemy-modal-btn secondary" onclick="closeEnemyModal()">キャンセル</button>
+      <button class="enemy-modal-btn primary" onclick="saveEnemyModal()">保存</button>
     </div>
   </div>
 </div>
@@ -517,6 +671,412 @@ function switchTab(t){
     el.classList.toggle('active',(t==='edit'&&i===0)||(t==='point'&&i===1))
   );
 }
+// ===================================================================
+// 討伐戦データ（戦場ごとの敵武将とポイント）
+// ・敵データは name / point のみを保持する（画像は保持しない）
+// ・画像が必要な場合は GENERALS.find(g=>g.name===enemy.name) から取得する
+// ・enemies[].point は撃破Pt計算（calcDefeatPt）で使用する
+// ===================================================================
+const POINT_DATA = {
+  "趙国編": [
+    { stage:"第1戦場", clearPoint:1000, enemies:[
+      { name:"趙荘", point:3000 },
+      { name:"万极", point:2500 },
+    ]},
+    { stage:"第2戦場", clearPoint:1200, enemies:[
+      { name:"慶舎", point:4000 },
+      { name:"武成", point:2800 },
+    ]},
+    { stage:"第3戦場", clearPoint:1500, enemies:[
+      { name:"馮忌", point:3200 },
+      { name:"公孫龍", point:2600 },
+    ]},
+    { stage:"第4戦場", clearPoint:1800, enemies:[
+      { name:"龐煖", point:6000 },
+      { name:"雷土", point:3400 },
+    ]},
+    { stage:"第5戦場", clearPoint:2200, enemies:[
+      { name:"李牧", point:7000 },
+      { name:"慶舎", point:4200 },
+      { name:"厳歳", point:3600 },
+    ]},
+  ],
+  "秦国編": [
+    { stage:"第1戦場", clearPoint:1000, enemies:[
+      { name:"王騎", point:4000 },
+      { name:"騰", point:3000 },
+    ]},
+    { stage:"第2戦場", clearPoint:1200, enemies:[
+      { name:"摎", point:3800 },
+      { name:"胡傷", point:2700 },
+    ]},
+    { stage:"第3戦場", clearPoint:1400, enemies:[
+      { name:"王齕", point:4200 },
+      { name:"司馬錯", point:3100 },
+    ]},
+    { stage:"第4戦場", clearPoint:1600, enemies:[
+      { name:"白起", point:5000 },
+      { name:"蒙驁", point:3300 },
+    ]},
+    { stage:"第5戦場", clearPoint:1800, enemies:[
+      { name:"王翦", point:4600 },
+      { name:"王賁", point:3200 },
+    ]},
+    { stage:"第6戦場", clearPoint:2000, enemies:[
+      { name:"桓騎", point:4800 },
+      { name:"蒙武", point:3500 },
+    ]},
+    { stage:"第7戦場", clearPoint:2400, enemies:[
+      { name:"麃公", point:5500 },
+      { name:"蒙恬", point:3700 },
+      { name:"信", point:3000 },
+    ]},
+  ],
+  "合従軍編": [
+    { stage:"第1戦場", clearPoint:1000, enemies:[
+      { name:"呉鳳明", point:5200 },
+      { name:"呉慶", point:3600 },
+    ]},
+    { stage:"第2戦場", clearPoint:1200, enemies:[
+      { name:"廉頗", point:5000 },
+      { name:"万极", point:2800 },
+    ]},
+    { stage:"第3戦場", clearPoint:1400, enemies:[
+      { name:"媧燐", point:4800 },
+      { name:"張唐", point:3000 },
+    ]},
+    { stage:"第4戦場", clearPoint:1600, enemies:[
+      { name:"春申君", point:5400 },
+      { name:"項翼", point:3300 },
+    ]},
+    { stage:"第5戦場", clearPoint:1800, enemies:[
+      { name:"成恢", point:4400 },
+      { name:"張印", point:3100 },
+    ]},
+    { stage:"第6戦場", clearPoint:2000, enemies:[
+      { name:"龐煖", point:6000 },
+      { name:"李牧", point:5800 },
+    ]},
+    { stage:"第7戦場", clearPoint:2200, enemies:[
+      { name:"楽毅", point:6500 },
+      { name:"馬関", point:3200 },
+    ]},
+    { stage:"第8戦場", clearPoint:2600, enemies:[
+      { name:"呉鳳明", point:6800 },
+      { name:"王翦", point:5000 },
+      { name:"桓騎", point:4600 },
+    ]},
+  ],
+  "魏国編": [
+    { stage:"第1戦場", clearPoint:1000, enemies:[
+      { name:"呉鳳明", point:5200 },
+      { name:"呉慶", point:3600 },
+    ]},
+    { stage:"第2戦場", clearPoint:1200, enemies:[
+      { name:"廉頗", point:5000 },
+      { name:"馬南慈", point:2900 },
+    ]},
+    { stage:"第3戦場", clearPoint:1400, enemies:[
+      { name:"呉慶", point:4200 },
+      { name:"雷土", point:3000 },
+    ]},
+    { stage:"第4戦場", clearPoint:1600, enemies:[
+      { name:"廉頗", point:5400 },
+      { name:"万极", point:3100 },
+    ]},
+    { stage:"第5戦場", clearPoint:1800, enemies:[
+      { name:"呉鳳明", point:5800 },
+      { name:"厳歳", point:3300 },
+    ]},
+    { stage:"第6戦場", clearPoint:2000, enemies:[
+      { name:"馬南慈", point:4600 },
+      { name:"公孫龍", point:3000 },
+    ]},
+    { stage:"第7戦場", clearPoint:2200, enemies:[
+      { name:"呉慶", point:5000 },
+      { name:"馮忌", point:3200 },
+    ]},
+    { stage:"第8戦場", clearPoint:2400, enemies:[
+      { name:"廉頗", point:5800 },
+      { name:"雷土", point:3400 },
+    ]},
+    { stage:"第9戦場", clearPoint:2600, enemies:[
+      { name:"呉鳳明", point:6200 },
+      { name:"馬南慈", point:3600 },
+    ]},
+    { stage:"第10戦場", clearPoint:3000, enemies:[
+      { name:"呉鳳明", point:7000 },
+      { name:"廉頗", point:6500 },
+      { name:"呉慶", point:5000 },
+    ]},
+  ],
+};
+
+// ===================================================================
+// ポイント効率タブ（UIのみ・数値はすべてダミー）
+// ===================================================================
+const POINT_ARCS = [
+  { key:'zhao',    label:'趙国編',   stageCount:5  },
+  { key:'qin',     label:'秦国編',   stageCount:7  },
+  { key:'gasshou', label:'合従軍編', stageCount:8  },
+  { key:'gi',      label:'魏国編',   stageCount:10 },
+];
+
+// ===== 撃破武将セル（敵選択モーダル）・クリア回数プルダウン用の状態 =====
+// キーは `${arcKey}_${stageIndex}` 形式。
+// pointSelections: そのマスでチェックされた敵の名前一覧
+// pointClearCounts: そのマスのクリア回数（1〜11。11=「11回以上」）
+// ※pointSelectionsは撃破Pt計算に使用する。pointClearCountsは出撃回数ボーナス
+//   （敵ポイント合計にのみ倍率適用）の算出に使用する。
+let pointSelections = {};
+let pointClearCounts = {};
+let enemyModalState = null; // { arcKey, stageIdx, enemies, checked:Set }
+
+const CLEAR_COUNT_OPTS = ['1回','2回','3回','4回','5回','6回','7回','8回','9回','10回','11回以上'];
+
+function pointKey(arcKey, stageIdx){ return `${arcKey}_${stageIdx}`; }
+
+function pointDummyStages(count){
+  const rows = [];
+  for(let i=1;i<=count;i++){
+    rows.push({
+      stage: `第${i}戦場`,
+      general: `武将${i}`,
+      defeatPt: 1200 + i*137,
+      clearPt: 300 + i*45,
+      pps: (12.5 + i*0.8).toFixed(1),
+      time: `0${1 + (i%3)}:${(10 + i*7)%60 < 10 ? '0' : ''}${(10 + i*7)%60}`,
+    });
+  }
+  return rows;
+}
+
+// ===== 敵選択モーダル =====
+function openEnemyModal(arcKey, stageIdx){
+  const arc = POINT_ARCS.find(a => a.key === arcKey);
+  if(!arc) return;
+  const stages = POINT_DATA[arc.label] || [];
+  const stage = stages[stageIdx];
+  if(!stage) return;
+  const key = pointKey(arcKey, stageIdx);
+  const existing = pointSelections[key] || [];
+  enemyModalState = {
+    arcKey, stageIdx, enemies: stage.enemies,
+    checked: new Set(existing),
+    clearCount: pointClearCounts[key] || 1
+  };
+  renderEnemyModal();
+  document.getElementById('enemy-modal-backdrop').classList.add('open');
+}
+function closeEnemyModal(){
+  document.getElementById('enemy-modal-backdrop').classList.remove('open');
+  enemyModalState = null;
+}
+function renderEnemyModal(){
+  if(!enemyModalState) return;
+  const arc = POINT_ARCS.find(a => a.key === enemyModalState.arcKey);
+  const stages = POINT_DATA[arc.label] || [];
+  const stage = stages[enemyModalState.stageIdx];
+  document.getElementById('enemy-modal-title').textContent =
+    `${stage ? stage.stage : ''} 撃破武将を選択`;
+  const clearOptions = CLEAR_COUNT_OPTS.map((label, i) => {
+    const val = i + 1;
+    return `<option value="${val}"${val===enemyModalState.clearCount?' selected':''}>${escapeHtml(label)}</option>`;
+  }).join('');
+  document.getElementById('enemy-modal-clear-select').innerHTML = clearOptions;
+  document.getElementById('enemy-modal-list').innerHTML = enemyModalState.enemies.map((e,i) => {
+    const g = GENERALS.find(x => x.name === e.name);
+    const src = g ? (safeImgUrl(g.img) || placeholderImg(g.name)) : placeholderImg(e.name);
+    const fallback = placeholderImg(e.name);
+    const checked = enemyModalState.checked.has(e.name);
+    return `<div class="enemy-modal-item" onclick="toggleEnemyChecked(${i})">
+      <div class="enemy-modal-card${checked?' checked':''}">
+        <img class="enemy-modal-card-img" src="${escapeHtml(src)}" alt="${escapeHtml(e.name)}"
+          data-fallback="${escapeHtml(fallback)}" onerror="this.onerror=null;this.src=this.dataset.fallback">
+        <span class="enemy-modal-checkmark"><i class="ti ti-check" aria-hidden="true"></i></span>
+      </div>
+      <span class="enemy-modal-name">${escapeHtml(e.name)}</span>
+    </div>`;
+  }).join('');
+}
+function toggleEnemyChecked(i){
+  if(!enemyModalState) return;
+  const e = enemyModalState.enemies[i];
+  if(!e) return;
+  if(enemyModalState.checked.has(e.name)) enemyModalState.checked.delete(e.name);
+  else enemyModalState.checked.add(e.name);
+  renderEnemyModal();
+}
+function setEnemyModalClearCount(value){
+  if(!enemyModalState) return;
+  enemyModalState.clearCount = parseInt(value, 10) || 1;
+}
+function saveEnemyModal(){
+  if(!enemyModalState) return;
+  const key = pointKey(enemyModalState.arcKey, enemyModalState.stageIdx);
+  pointSelections[key] = Array.from(enemyModalState.checked);
+  pointClearCounts[key] = enemyModalState.clearCount;
+  closeEnemyModal();
+  renderPointTab();
+}
+
+// 撃破武将セル：チェック済みの敵画像だけを横並び表示。未選択なら「選択」リンク表示。
+function defeatedCellHTML(arcKey, stageIdx){
+  const key = pointKey(arcKey, stageIdx);
+  const selectedNames = pointSelections[key] || [];
+  if(selectedNames.length === 0){
+    return `<td class="point-cell-defeat" onclick="openEnemyModal('${arcKey}',${stageIdx})">
+      <span class="point-defeat-placeholder">選択</span>
+    </td>`;
+  }
+  const imgs = selectedNames.map(name => {
+    const g = GENERALS.find(x => x.name === name);
+    const src = g ? (safeImgUrl(g.img) || placeholderImg(g.name)) : placeholderImg(name);
+    const fallback = placeholderImg(name);
+    return `<img class="point-defeat-img" src="${escapeHtml(src)}" alt="${escapeHtml(name)}"
+      data-fallback="${escapeHtml(fallback)}" onerror="this.onerror=null;this.src=this.dataset.fallback">`;
+  }).join('');
+  return `<td class="point-cell-defeat" onclick="openEnemyModal('${arcKey}',${stageIdx})">
+    <div class="point-defeat-imgs">${imgs}</div>
+  </td>`;
+}
+
+// ===== 撃破Pt計算用の倍率定数 =====
+// 討伐アイテム倍率（酒使用時：3倍 ⇒ +2）
+const ITEM_MULTIPLIER = 2;
+// 盟友集結倍率（発生中：1.05倍 ⇒ +0.05）
+const ALLY_MULTIPLIER = 0.05;
+// 一番槍ボーナス倍率（適用中：1.2倍 ⇒ +0.2）※1回目の獲得ポイントにのみ適用する
+const FIRST_STRIKE_MULTIPLIER = 0.2;
+
+// 1回目：討伐アイテム＋盟友＋一番槍をすべて適用
+const MULTIPLIER_FIRST_RUN = 1 + ITEM_MULTIPLIER + ALLY_MULTIPLIER + FIRST_STRIKE_MULTIPLIER;
+// 2回目以降：一番槍ボーナスは適用しない
+const MULTIPLIER_OTHER_RUN = 1 + ITEM_MULTIPLIER + ALLY_MULTIPLIER;
+
+// ===== 出撃回数ボーナス倍率 =====
+// クリア回数（そのマスの出撃回数）に応じた倍率。
+// 討伐アイテム・盟友・一番槍の倍率は適用せず、選択した敵ポイント合計に対してのみ掛ける。
+const SORTIE_COUNT_BONUS = {
+  1: 2.0,
+  2: 1.0,
+  3: 0.6,
+  4: 0.4,
+  5: 0.3,
+};
+function sortieCountBonusMultiplier(count){
+  if(count in SORTIE_COUNT_BONUS) return SORTIE_COUNT_BONUS[count];
+  if(count >= 6 && count <= 10) return 0.2;
+  return 0; // 11回以上
+}
+
+// 指定した戦場で選択済みの敵ポイント合計
+function selectedEnemyPointSum(arcKey, stageIdx, stage){
+  const key = pointKey(arcKey, stageIdx);
+  const selectedNames = pointSelections[key] || [];
+  return (stage.enemies || [])
+    .filter(e => selectedNames.includes(e.name))
+    .reduce((sum, e) => sum + e.point, 0);
+}
+
+// 討伐編（アーク）全体で選択済みの敵ポイント合計
+function totalSelectedEnemyPointSum(arcKey, stages){
+  return stages.reduce((sum, s, i) => sum + selectedEnemyPointSum(arcKey, i, s), 0);
+}
+
+// 出撃回数ボーナス = 選択した敵ポイント合計 × 出撃回数に応じた倍率
+// （討伐アイテム・盟友・一番槍の倍率は適用しない）
+function calcSortieCountBonus(arcKey, stageIdx, stage){
+  const key = pointKey(arcKey, stageIdx);
+  const count = pointClearCounts[key] || 1;
+  const enemyPointSum = selectedEnemyPointSum(arcKey, stageIdx, stage);
+  return enemyPointSum * sortieCountBonusMultiplier(count);
+}
+
+// 撃破Pt（最終獲得Pt）= 通常ポイント（選択した敵ポイント合計 × (1 + 討伐アイテム倍率 + 盟友倍率 + 一番槍倍率)）
+//                        ＋ 出撃回数ボーナス
+// 端数は最後にfloor。
+function calcDefeatPt(arcKey, stageIdx, stage){
+  const enemyPointSum = selectedEnemyPointSum(arcKey, stageIdx, stage);
+  const normalPt = enemyPointSum * MULTIPLIER_FIRST_RUN;
+  const sortieBonus = calcSortieCountBonus(arcKey, stageIdx, stage);
+  return Math.floor(normalPt + sortieBonus);
+}
+
+function renderPointTab(){
+  const select = document.getElementById('point-arc-select');
+  const arc = POINT_ARCS.find(a => a.key === select.value) || POINT_ARCS[0];
+  const stages = POINT_DATA[arc.label] || [];
+
+  // 撃破Ptは実計算（選択した敵ポイント合計×倍率＋出撃回数ボーナス、floor）。
+  // クリアPt・Pt/s・タイムはまだダミー値（ポイント計算は今回対象外）
+  const rows = stages.map((s, i) => ({
+    stage: s.stage,
+    defeatPt: calcDefeatPt(arc.key, i, s),
+    clearPt: 300 + i*45,
+    pps: (12.5 + i*0.8).toFixed(1),
+    time: `0${1 + (i%3)}:${(10 + i*7)%60 < 10 ? '0' : ''}${(10 + i*7)%60}`,
+  }));
+
+  const totalDefeat = rows.reduce((sum,r)=>sum + r.defeatPt, 0);
+  const totalClear = rows.reduce((sum,r)=>sum + r.clearPt, 0);
+
+  document.getElementById('point-table-body').innerHTML = rows.map((r,i) => `
+    <tr>
+      <td class="point-cell-stage">${escapeHtml(r.stage)}</td>
+      ${defeatedCellHTML(arc.key, i)}
+      <td>${r.defeatPt.toLocaleString()}</td>
+      <td>${r.clearPt.toLocaleString()}</td>
+      <td>${r.pps}</td>
+      <td>${r.time}</td>
+    </tr>
+  `).join('') + `
+    <tr class="point-total-row">
+      <td class="point-cell-stage">合計</td>
+      <td class="point-cell-empty"></td>
+      <td>${totalDefeat.toLocaleString()}</td>
+      <td>${totalClear.toLocaleString()}</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+  `;
+
+  // 右下カード：1回目Ptは一番槍ボーナスを含む撃破Ptの合計（＝totalDefeat）。
+  // 2回目・3回目Ptは一番槍ボーナスを含まない倍率で選択済み敵ポイント合計から算出する。
+  // クリアPtはまだダミー値のため、run系はいずれも撃破Ptのみを対象とする（今回対象外）。
+  const totalEnemySum = totalSelectedEnemyPointSum(arc.key, stages);
+  const run1 = totalDefeat;
+  const run2 = Math.floor(totalEnemySum * MULTIPLIER_OTHER_RUN);
+  const run3 = Math.floor(totalEnemySum * MULTIPLIER_OTHER_RUN);
+  const runTotal = run1 + run2 + run3;
+
+  document.getElementById('point-side').innerHTML = `
+    <div class="point-card">
+      <span class="point-card-label">1回目Pt</span>
+      <span class="point-card-value">${run1.toLocaleString()}</span>
+    </div>
+    <div class="point-card">
+      <span class="point-card-label">2回目Pt</span>
+      <span class="point-card-value">${run2.toLocaleString()}</span>
+    </div>
+    <div class="point-card">
+      <span class="point-card-label">3回目Pt</span>
+      <span class="point-card-value">${run3.toLocaleString()}</span>
+    </div>
+    <div class="point-card point-card-total">
+      <span class="point-card-label">合計Pt</span>
+      <span class="point-card-value">${runTotal.toLocaleString()}</span>
+    </div>
+  `;
+}
+
+function setupPointTab(){
+  const select = document.getElementById('point-arc-select');
+  select.innerHTML = POINT_ARCS.map(a => `<option value="${a.key}">${escapeHtml(a.label)}</option>`).join('');
+  renderPointTab();
+}
+setupPointTab();
+
 function filterList(){
   const raw = document.getElementById('search-input').value.trim();
   const q = toHiragana(raw);
