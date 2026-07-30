@@ -357,6 +357,27 @@ function placeholderImg(name){
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=b8a878&color=fff&size=128&font-size=0.4&bold=true`;
 }
 
+// ===== XSS対策：innerHTMLに差し込む文字列は必ずこれを通す =====
+// DB(Supabase)由来のデータや、クリップボード貼り付けから復元したデータは
+// 信頼できない外部入力として扱い、HTMLとして解釈されないようエスケープする。
+function escapeHtml(str){
+  return String(str ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[ch]));
+}
+// 画像URLは http/https のみ許可（javascript: 等のスキームを弾く）
+function safeImgUrl(url){
+  try{
+    const u = new URL(url, window.location.href);
+    if(u.protocol === 'http:' || u.protocol === 'https:') return u.href;
+  }catch(e){/* fallthrough */}
+  return '';
+}
+
 // カタカナ→ひらがな正規化（検索でひらがな/カタカナどちらでも一致させる）
 function toHiragana(str){
   return (str||'').replace(/[\u30a1-\u30f6]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
@@ -371,9 +392,9 @@ async function fetchGenerals(){
     throw new Error((body && body.error) || `取得に失敗しました (status ${res.status})`);
   }
   return body.map(r => ({
-    name: r.name,
+    name: String(r.name ?? ''),
     yomi: toHiragana(r.yomi || ''),
-    img: r.img || placeholderImg(r.name)
+    img: (r.img && safeImgUrl(r.img)) || placeholderImg(r.name)
   }));
 }
 
@@ -431,8 +452,10 @@ function renderList(){
     list.innerHTML = `<div style="padding:10px;font-size:12px;color:var(--text-muted)">読み込み中...</div>`;
     return;
   }
-  list.innerHTML = filteredList.map(g=>
-    `<div class="general-item${selectedGeneral===g.name?' sel':''}" onclick="selectGeneral('${g.name}')">${g.name}</div>`
+  // 名前を直接onclick(JS文字列コンテキスト)に埋め込むと、名前に ' や \ が
+  // 含まれた場合にJSインジェクションが成立してしまうため、インデックス経由で呼ぶ。
+  list.innerHTML = filteredList.map((g,i)=>
+    `<div class="general-item${selectedGeneral===g.name?' sel':''}" onclick="selectGeneralByIndex(${i})">${escapeHtml(g.name)}</div>`
   ).join('');
 }
 function openSheet(){
@@ -504,6 +527,11 @@ function saveScreenshot(){
   });
 }
 function selectGeneral(name){ selectedGeneral=name; renderList(); }
+function selectGeneralByIndex(i){
+  const g = filteredList[i];
+  if(!g) return;
+  selectGeneral(g.name);
+}
 function confirmSelection(){
   if(!selectedGeneral || !selectedSlot) return;
   const g = GENERALS.find(x=>x.name===selectedGeneral);
@@ -584,8 +612,10 @@ function slotCardHTML(col,role){
     : !!(selectedSlot && selectedSlot.col===col && selectedSlot.role===role);
   const selClass = isSel ? ' selected' : '';
   if(g){
+    const safeSrc = safeImgUrl(g.img) || placeholderImg(g.name);
+    const fallback = placeholderImg(g.name);
     return `<div class="slot-card${selClass}" onclick="clickSlot(${col},'${role}')">
-      <img class="slot-card-img" src="${g.img}" alt="${g.name}" onerror="this.onerror=null;this.src='${placeholderImg(g.name)}'">
+      <img class="slot-card-img" src="${escapeHtml(safeSrc)}" alt="${escapeHtml(g.name)}" data-fallback="${escapeHtml(fallback)}" onerror="this.onerror=null;this.src=this.dataset.fallback">
     </div>`;
   }
   return `<div class="slot-card empty-slot${selClass}" onclick="clickSlot(${col},'${role}')">
@@ -594,7 +624,7 @@ function slotCardHTML(col,role){
 }
 function slotNameHTML(col,role){
   const g = slots[col][role];
-  return `<div class="slot-name-under">${g ? g.name : ''}</div>`;
+  return `<div class="slot-name-under">${g ? escapeHtml(g.name) : ''}</div>`;
 }
 
 function timingBtnClass(col){
@@ -668,9 +698,13 @@ async function saveFormation(){
   }
 }
 
+// 復元データの武将名は、必ずサーバー(Supabase)から取得済みの既知の武将リスト
+// (GENERALS)に存在するものだけを採用する。未知の文字列をそのまま保持して
+// 表示に使うと、貼り付けられた編成データ経由で任意のHTML/JSを注入できて
+// しまうため（DOM-based XSS）、見つからない場合は「空欄」として扱う。
 function findGeneralByName(name){
-  if(!name) return null;
-  return GENERALS.find(g => g.name === name) || {name, img: placeholderImg(name)};
+  if(typeof name !== 'string' || !name) return null;
+  return GENERALS.find(g => g.name === name) || null;
 }
 
 function loadFormation(data){
@@ -679,10 +713,20 @@ function loadFormation(data){
     const s = data.slots[i] || {};
     return { main: findGeneralByName(s.main), sub: findGeneralByName(s.sub) };
   });
-  if(Array.isArray(data.timings) && data.timings.length === COLS.length) timings = data.timings;
-  if(Array.isArray(data.policies) && data.policies.length === COLS.length) policies = data.policies;
+  if(Array.isArray(data.timings) && data.timings.length === COLS.length &&
+     data.timings.every(v => v === null || (Number.isInteger(v) && v >= 0 && v < TIMING_OPTS.length))){
+    timings = data.timings;
+  }
+  if(Array.isArray(data.policies) && data.policies.length === COLS.length &&
+     data.policies.every(v => v === null || (Number.isInteger(v) && v >= 0 && v < POLICY_OPTS.length))){
+    policies = data.policies;
+  }
   const nameInput = document.querySelector('.formation-name-input');
-  if(nameInput && typeof data.name === 'string') nameInput.value = data.name;
+  // 編成名も信頼できない値なので、textContent的に扱われるinput.valueへの
+  // 代入は安全（HTMLとして解釈されない）だが、念のため文字列型・長さを検証する。
+  if(nameInput && typeof data.name === 'string'){
+    nameInput.value = data.name.slice(0, 100);
+  }
   selectedSlot = null;
   swapFirst = null;
   closeSheet();
@@ -725,6 +769,11 @@ document.addEventListener('paste', (e) => {
   const text = (e.clipboardData || window.clipboardData) ? (e.clipboardData || window.clipboardData).getData('text') : '';
   if(!text || !text.startsWith(FORMATION_PREFIX)) return; // 通常のペーストは邪魔しない
   e.preventDefault();
+  // 悪意あるサイト等に誘導され、細工した編成データを気づかず貼り付けさせられる
+  // 「ペーストジャッキング」対策として、実際に反映する前に必ず確認を挟む。
+  if(!confirm('クリップボードの内容を編成データとして読み込みます。よろしいですか？\n（心当たりのない場所からコピーした文字列の場合はキャンセルしてください）')){
+    return;
+  }
   try{
     const json = base64ToUtf8(text.slice(FORMATION_PREFIX.length));
     const data = JSON.parse(json);
@@ -745,7 +794,7 @@ async function init(){
   }catch(e){
     console.error(e);
     document.getElementById('general-list').innerHTML =
-      `<div style="padding:10px;font-size:12px;color:#aa3311">読み込みに失敗しました。<br>${e.message}</div>`;
+      `<div style="padding:10px;font-size:12px;color:#aa3311">読み込みに失敗しました。<br>${escapeHtml(e.message)}</div>`;
   }
 }
 init();
