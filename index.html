@@ -542,73 +542,14 @@ const COLS = [
 const TIMING_OPTS = ['オフ','交戦時','士気最大時'];
 const POLICY_OPTS = ['オフ','要所防衛','部隊優先','全部隊撃破','全敵将撃破','要所優先','部隊停止'];
 
-// ===================================================================
-// ステージ配置データ（プレビュー機能）
-// ===================================================================
-// stagesフォルダに置いた画像ごとに、「総大将/第1〜4軍/援軍」アイコンの
-// 表示位置(x,y中心座標,一辺のサイズ)をpx単位で定義する。
-// 画像の解像度(ref)は自動取得するので書かなくてよい。
-// image: /stages/ 配下の画像ファイルへのパス
-// points のキーと編成スロットの対応:
-//   main = 総大将 / army1〜4 = 第1〜4軍 / reinforce = 援軍
-//   （軍師はマップ上に表示しないため対応キーなし）
-const STAGE_LAYOUTS = {
-  '秦国三大天➅': {
-    image: 'stages/shin_sandaiten6.png',
-    points: {
-      main: { x: 192, y: 129, size: 60 }, // 総大将
-      army1: { x: 127, y: 79, size: 60 }, // 第1軍
-      army2: { x: 256, y: 182, size: 60 }, // 第2軍
-      army3: { x: 58, y: 127, size: 60 }, // 第3軍
-      army4: { x: 125, y: 186, size: 60 }, // 第4軍
-      reinforce: { x: 191, y: 247, size: 60 }, // 援軍
-    }
-  },
-  '秦国三大天➆': {
-    image: 'stages/shin_sandaiten7.png',
-    points: {
-      main: { x: 206, y: 130, size: 60 }, // 総大将
-      army1: { x: 143, y: 88, size: 60 }, // 第1軍
-      army2: { x: 274, y: 176, size: 60 }, // 第2軍
-      army3: { x: 84, y: 151, size: 60 }, // 第3軍
-      army4: { x: 152, y: 196, size: 60 }, // 第4軍
-      reinforce: { x: 219, y: 238, size: 60 }, // 援軍
-    }
-  },
-  '秦国三大天➇': {
-    image: 'stages/shin_sandaiten8.png',
-    points: {
-      main: { x: 333, y: 85, size: 70 }, // 総大将
-      army1: { x: 409, y: 131, size: 70 }, // 第1軍
-      army2: { x: 726, y: 304, size: 70 }, // 第2軍
-      army3: { x: 76, y: 207, size: 70 }, // 第3軍
-      army4: { x: 526, y: 475, size: 70 }, // 第4軍
-      reinforce: { x: 714, y: 598, size: 70 }, // 援軍
-    }
-  },
-  '秦国三大天➈': {
-    image: 'stages/shin_sandaiten9.png',
-    points: {
-      main: { x: 456, y: 195, size: 60 }, // 総大将
-      army1: { x: 405, y: 132, size: 60 }, // 第1軍
-      army2: { x: 509, y: 259, size: 60 }, // 第2軍
-      army3: { x: 353, y: 71, size: 60 }, // 第3軍
-      army4: { x: 571, y: 319, size: 60 }, // 第4軍
-      reinforce: { x: 96, y: 217, size: 60 }, // 援軍
-    }
-  },
-  '秦国三大天➉': {
-    image: 'stages/shin_sandaiten10.png',
-    points: {
-      main: { x: 276, y: 199, size: 65 }, // 総大将
-      army1: { x: 218, y: 129, size: 65 }, // 第1軍
-      army2: { x: 335, y: 271, size: 65 }, // 第2軍
-      army3: { x: 171, y: 61, size: 65 }, // 第3軍
-      army4: { x: 385, y: 345, size: 65 }, // 第4軍
-      reinforce: { x: 207, y: 245, size: 65 }, // 援軍
-    }
-  },
-};
+let STAGE_LAYOUTS = {};
+
+async function fetchStageLayouts(){
+  const res = await fetch('stages.json');
+  if(!res.ok) throw new Error(`stages.jsonの取得に失敗しました (status ${res.status})`);
+  return res.json();
+}
+
 // COLS配列のインデックス(0〜6)と STAGE_LAYOUTS.points のキーの対応表
 // (5番目=軍師 は null なのでマップ上には表示しない)
 const COL_POINT_KEY = ['main','army1','army2','army3','army4', null, 'reinforce'];
@@ -677,155 +618,23 @@ function switchTab(t){
     el.classList.toggle('active',(t==='edit'&&i===0)||(t==='point'&&i===1))
   );
 }
-// ===================================================================
-// 討伐戦データ（戦場ごとの敵武将とポイント）
-// ・敵データは name / point のみを保持する（画像は保持しない）
-// ・画像が必要な場合は GENERALS.find(g=>g.name===enemy.name) から取得する
-// ・enemies[].point は撃破Pt計算（calcDefeatPt）で使用する
-// ===================================================================
-const POINT_DATA = {
-  "趙国編": [
-    { stage:"第1戦場", clearPoint:1000, enemies:[
-      { name:"趙荘", point:3000 },
-      { name:"万极", point:2500 },
-    ]},
-    { stage:"第2戦場", clearPoint:1200, enemies:[
-      { name:"慶舎", point:4000 },
-      { name:"武成", point:2800 },
-    ]},
-    { stage:"第3戦場", clearPoint:1500, enemies:[
-      { name:"馮忌", point:3200 },
-      { name:"公孫龍", point:2600 },
-    ]},
-    { stage:"第4戦場", clearPoint:1800, enemies:[
-      { name:"龐煖", point:6000 },
-      { name:"雷土", point:3400 },
-    ]},
-    { stage:"第5戦場", clearPoint:2200, enemies:[
-      { name:"李牧", point:7000 },
-      { name:"慶舎", point:4200 },
-      { name:"厳歳", point:3600 },
-    ]},
-  ],
-  "秦国編": [
-    { stage:"第1戦場", clearPoint:1000, enemies:[
-      { name:"王騎", point:4000 },
-      { name:"騰", point:3000 },
-    ]},
-    { stage:"第2戦場", clearPoint:1200, enemies:[
-      { name:"摎", point:3800 },
-      { name:"胡傷", point:2700 },
-    ]},
-    { stage:"第3戦場", clearPoint:1400, enemies:[
-      { name:"王齕", point:4200 },
-      { name:"司馬錯", point:3100 },
-    ]},
-    { stage:"第4戦場", clearPoint:1600, enemies:[
-      { name:"白起", point:5000 },
-      { name:"蒙驁", point:3300 },
-    ]},
-    { stage:"第5戦場", clearPoint:1800, enemies:[
-      { name:"王翦", point:4600 },
-      { name:"王賁", point:3200 },
-    ]},
-    { stage:"第6戦場", clearPoint:2000, enemies:[
-      { name:"桓騎", point:4800 },
-      { name:"蒙武", point:3500 },
-    ]},
-    { stage:"第7戦場", clearPoint:2400, enemies:[
-      { name:"麃公", point:5500 },
-      { name:"蒙恬", point:3700 },
-      { name:"信", point:3000 },
-    ]},
-  ],
-  "合従軍編": [
-    { stage:"第1戦場", clearPoint:1000, enemies:[
-      { name:"呉鳳明", point:5200 },
-      { name:"呉慶", point:3600 },
-    ]},
-    { stage:"第2戦場", clearPoint:1200, enemies:[
-      { name:"廉頗", point:5000 },
-      { name:"万极", point:2800 },
-    ]},
-    { stage:"第3戦場", clearPoint:1400, enemies:[
-      { name:"媧燐", point:4800 },
-      { name:"張唐", point:3000 },
-    ]},
-    { stage:"第4戦場", clearPoint:1600, enemies:[
-      { name:"春申君", point:5400 },
-      { name:"項翼", point:3300 },
-    ]},
-    { stage:"第5戦場", clearPoint:1800, enemies:[
-      { name:"成恢", point:4400 },
-      { name:"張印", point:3100 },
-    ]},
-    { stage:"第6戦場", clearPoint:2000, enemies:[
-      { name:"龐煖", point:6000 },
-      { name:"李牧", point:5800 },
-    ]},
-    { stage:"第7戦場", clearPoint:2200, enemies:[
-      { name:"楽毅", point:6500 },
-      { name:"馬関", point:3200 },
-    ]},
-    { stage:"第8戦場", clearPoint:2600, enemies:[
-      { name:"呉鳳明", point:6800 },
-      { name:"王翦", point:5000 },
-      { name:"桓騎", point:4600 },
-    ]},
-  ],
-  "魏国編": [
-    { stage:"第1戦場", clearPoint:1000, enemies:[
-      { name:"呉鳳明", point:5200 },
-      { name:"呉慶", point:3600 },
-    ]},
-    { stage:"第2戦場", clearPoint:1200, enemies:[
-      { name:"廉頗", point:5000 },
-      { name:"馬南慈", point:2900 },
-    ]},
-    { stage:"第3戦場", clearPoint:1400, enemies:[
-      { name:"呉慶", point:4200 },
-      { name:"雷土", point:3000 },
-    ]},
-    { stage:"第4戦場", clearPoint:1600, enemies:[
-      { name:"廉頗", point:5400 },
-      { name:"万极", point:3100 },
-    ]},
-    { stage:"第5戦場", clearPoint:1800, enemies:[
-      { name:"呉鳳明", point:5800 },
-      { name:"厳歳", point:3300 },
-    ]},
-    { stage:"第6戦場", clearPoint:2000, enemies:[
-      { name:"馬南慈", point:4600 },
-      { name:"公孫龍", point:3000 },
-    ]},
-    { stage:"第7戦場", clearPoint:2200, enemies:[
-      { name:"呉慶", point:5000 },
-      { name:"馮忌", point:3200 },
-    ]},
-    { stage:"第8戦場", clearPoint:2400, enemies:[
-      { name:"廉頗", point:5800 },
-      { name:"雷土", point:3400 },
-    ]},
-    { stage:"第9戦場", clearPoint:2600, enemies:[
-      { name:"呉鳳明", point:6200 },
-      { name:"馬南慈", point:3600 },
-    ]},
-    { stage:"第10戦場", clearPoint:3000, enemies:[
-      { name:"呉鳳明", point:7000 },
-      { name:"廉頗", point:6500 },
-      { name:"呉慶", point:5000 },
-    ]},
-  ],
-};
+
+let POINT_DATA = {};
+
+async function fetchPointData(){
+  const res = await fetch('enemy.json');
+  if(!res.ok) throw new Error(`enemy.jsonの取得に失敗しました (status ${res.status})`);
+  return res.json();
+}
 
 // ===================================================================
 // ポイント効率タブ（UIのみ・数値はすべてダミー）
 // ===================================================================
 const POINT_ARCS = [
-  { key:'zhao',    label:'趙国編',   stageCount:5  },
-  { key:'qin',     label:'秦国編',   stageCount:7  },
-  { key:'gasshou', label:'合従軍編', stageCount:8  },
-  { key:'gi',      label:'魏国編',   stageCount:10 },
+  { key:'zhao',    label:'趙国編',   stageCount:10  },
+  { key:'qin',     label:'秦国編',   stageCount:10  },
+  { key:'gasshou', label:'合従軍編', stageCount:5  },
+  { key:'gi',      label:'魏国編',   stageCount:5 },
 ];
 
 // ===== 撃破武将セル（敵選択モーダル）・クリア回数プルダウン用の状態 =====

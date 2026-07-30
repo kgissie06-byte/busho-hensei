@@ -1,0 +1,134 @@
+{
+  "趙国編": [
+    { "stage": "第1戦場", "clearPoint": 1000, "enemies": [
+      { "name": "趙荘", "point": 3000 },
+      { "name": "万极", "point": 2500 }
+    ]},
+    { "stage": "第2戦場", "clearPoint": 1200, "enemies": [
+      { "name": "慶舎", "point": 4000 },
+      { "name": "武成", "point": 2800 }
+    ]},
+    { "stage": "第3戦場", "clearPoint": 1500, "enemies": [
+      { "name": "馮忌", "point": 3200 },
+      { "name": "公孫龍", "point": 2600 }
+    ]},
+    { "stage": "第4戦場", "clearPoint": 1800, "enemies": [
+      { "name": "龐煖", "point": 6000 },
+      { "name": "雷土", "point": 3400 }
+    ]},
+    { "stage": "第5戦場", "clearPoint": 2200, "enemies": [
+      { "name": "李牧", "point": 7000 },
+      { "name": "慶舎", "point": 4200 },
+      { "name": "厳歳", "point": 3600 }
+    ]}
+  ],
+  "秦国編": [
+    { "stage": "第1戦場", "clearPoint": 1000, "enemies": [
+      { "name": "王騎", "point": 4000 },
+      { "name": "騰", "point": 3000 }
+    ]},
+    { "stage": "第2戦場", "clearPoint": 1200, "enemies": [
+      { "name": "摎", "point": 3800 },
+      { "name": "胡傷", "point": 2700 }
+    ]},
+    { "stage": "第3戦場", "clearPoint": 1400, "enemies": [
+      { "name": "王齕", "point": 4200 },
+      { "name": "司馬錯", "point": 3100 }
+    ]},
+    { "stage": "第4戦場", "clearPoint": 1600, "enemies": [
+      { "name": "白起", "point": 5000 },
+      { "name": "蒙驁", "point": 3300 }
+    ]},
+    { "stage": "第5戦場", "clearPoint": 1800, "enemies": [
+      { "name": "王翦", "point": 4600 },
+      { "name": "王賁", "point": 3200 }
+    ]},
+    { "stage": "第6戦場", "clearPoint": 2000, "enemies": [
+      { "name": "桓騎", "point": 4800 },
+      { "name": "蒙武", "point": 3500 }
+    ]},
+    { "stage": "第7戦場", "clearPoint": 2400, "enemies": [
+      { "name": "麃公", "point": 5500 },
+      { "name": "蒙恬", "point": 3700 },
+      { "name": "信", "point": 3000 }
+    ]}
+  ],
+  "合従軍編": [
+    { "stage": "第1戦場", "clearPoint": 1000, "enemies": [
+      { "name": "呉鳳明", "point": 5200 },
+      { "name": "呉慶", "point": 3600 }
+    ]},
+    { "stage": "第2戦場", "clearPoint": 1200, "enemies": [
+      { "name": "廉頗", "point": 5000 },
+      { "name": "万极", "point": 2800 }
+    ]},
+    { "stage": "第3戦場", "clearPoint": 1400, "enemies": [
+      { "name": "媧燐", "point": 4800 },
+      { "name": "張唐", "point": 3000 }
+    ]},
+    { "stage": "第4戦場", "clearPoint": 1600, "enemies": [
+      { "name": "春申君", "point": 5400 },
+      { "name": "項翼", "point": 3300 }
+    ]},
+    { "stage": "第5戦場", "clearPoint": 1800, "enemies": [
+      { "name": "成恢", "point": 4400 },
+      { "name": "張印", "point": 3100 }
+    ]},
+    { "stage": "第6戦場", "clearPoint": 2000, "enemies": [
+      { "name": "龐煖", "point": 6000 },
+      { "name": "李牧", "point": 5800 }
+    ]},
+    { "stage": "第7戦場", "clearPoint": 2200, "enemies": [
+      { "name": "楽毅", "point": 6500 },
+      { "name": "馬関", "point": 3200 }
+    ]},
+    { "stage": "第8戦場", "clearPoint": 2600, "enemies": [
+      { "name": "呉鳳明", "point": 6800 },
+      { "name": "王翦", "point": 5000 },
+      { "name": "桓騎", "point": 4600 }
+    ]}
+  ],
+  "魏国編": [
+    { "stage": "第1戦場", "clearPoint": 1000, "enemies": [
+      { "name": "呉鳳明", "point": 5200 },
+      { "name": "呉慶", "point": 3600 }
+    ]},
+    { "stage": "第2戦場", "clearPoint": 1200, "enemies": [
+      { "name": "廉頗", "point": 5000 },
+      { "name": "馬南慈", "point": 2900 }
+    ]},
+    { "stage": "第3戦場", "clearPoint": 1400, "enemies": [
+      { "name": "呉慶", "point": 4200 },
+      { "name": "雷土", "point": 3000 }
+    ]},
+    { "stage": "第4戦場", "clearPoint": 1600, "enemies": [
+      { "name": "廉頗", "point": 5400 },
+      { "name": "万极", "point": 3100 }
+    ]},
+    { "stage": "第5戦場", "clearPoint": 1800, "enemies": [
+      { "name": "呉鳳明", "point": 5800 },
+      { "name": "厳歳", "point": 3300 }
+    ]},
+    { "stage": "第6戦場", "clearPoint": 2000, "enemies": [
+      { "name": "馬南慈", "point": 4600 },
+      { "name": "公孫龍", "point": 3000 }
+    ]},
+    { "stage": "第7戦場", "clearPoint": 2200, "enemies": [
+      { "name": "呉慶", "point": 5000 },
+      { "name": "馮忌", "point": 3200 }
+    ]},
+    { "stage": "第8戦場", "clearPoint": 2400, "enemies": [
+      { "name": "廉頗", "point": 5800 },
+      { "name": "雷土", "point": 3400 }
+    ]},
+    { "stage": "第9戦場", "clearPoint": 2600, "enemies": [
+      { "name": "呉鳳明", "point": 6200 },
+      { "name": "馬南慈", "point": 3600 }
+    ]},
+    { "stage": "第10戦場", "clearPoint": 3000, "enemies": [
+      { "name": "呉鳳明", "point": 7000 },
+      { "name": "廉頗", "point": 6500 },
+      { "name": "呉慶", "point": 5000 }
+    ]}
+  ]
+}
