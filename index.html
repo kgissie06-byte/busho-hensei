@@ -658,21 +658,6 @@ const CLEAR_COUNT_OPTS = ['1回','2回','3回','4回','5回','6回','7回','8回
 
 function pointKey(arcKey, stageIdx){ return `${arcKey}_${stageIdx}`; }
 
-function pointDummyStages(count){
-  const rows = [];
-  for(let i=1;i<=count;i++){
-    rows.push({
-      stage: `第${i}戦場`,
-      general: `武将${i}`,
-      defeatPt: 1200 + i*137,
-      clearPt: 300 + i*45,
-      pps: (12.5 + i*0.8).toFixed(1),
-      time: `0${1 + (i%3)}:${(10 + i*7)%60 < 10 ? '0' : ''}${(10 + i*7)%60}`,
-    });
-  }
-  return rows;
-}
-
 // ===== 敵選択モーダル =====
 function openEnemyModal(arcKey, stageIdx){
   const arc = POINT_ARCS.find(a => a.key === arcKey);
