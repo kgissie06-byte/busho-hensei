@@ -214,16 +214,16 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
   position:sticky;top:0;z-index:1;
   background:var(--panel);color:var(--text);
   font-weight:600;text-align:center;
-  padding:7px 6px;border-bottom:1px solid var(--card-border);white-space:nowrap;
+  padding:7px 6px;border:1px solid var(--card-border);white-space:nowrap;
 }
 .point-table td{
   padding:6px;text-align:center;color:var(--text);
-  border-bottom:1px solid #e0d8c0;white-space:nowrap;
+  border:1px solid #e0d8c0;white-space:nowrap;
 }
 .point-table tbody tr:hover{background:var(--card-hover)}
 .point-table td.point-cell-stage{text-align:left;color:var(--text)}
 .point-table tr.point-total-row{background:var(--card);font-weight:600}
-.point-table tr.point-total-row td{border-top:1.5px solid var(--card-border);border-bottom:none}
+.point-table tr.point-total-row td{border-top:1.5px solid var(--card-border)}
 .point-table tr.point-total-row td.point-cell-empty{color:var(--text-muted)}
 
 .point-side{
@@ -240,10 +240,52 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 .point-card.point-card-total .point-card-label{color:var(--blue)}
 .point-card.point-card-total .point-card-value{color:var(--blue)}
 
+/* ポイント効率タブ：スマホ用スライド表示 */
+.point-mobile-area{display:none;flex-direction:column;gap:8px}
+.point-slider-wrap{display:flex;align-items:center;gap:6px}
+.point-slider{
+  flex:1;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;border-radius:8px;
+}
+.point-slider::-webkit-scrollbar{display:none}
+.point-slide{
+  scroll-snap-align:center;flex:0 0 100%;max-width:100%;
+  background:#f8f4ea;border:1px solid var(--card-border);border-radius:8px;
+  overflow:hidden;
+}
+.point-slide-title{
+  font-size:14px;font-weight:600;color:var(--text);text-align:center;
+  padding:8px 6px;background:var(--panel);border-bottom:1px solid var(--card-border);
+}
+.point-slide-row{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:9px 10px;border:1px solid #e0d8c0;border-top:none;font-size:13px;
+}
+.point-slide-row-label{color:var(--text-muted);flex-shrink:0}
+.point-slide-row-value{color:var(--text);font-weight:600}
+.point-slide-nav-btn{
+  flex-shrink:0;width:32px;height:32px;border-radius:50%;
+  border:1px solid var(--card-border);background:var(--card);color:var(--text);
+  display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;
+}
+.point-slide-nav-btn:active{background:var(--card-hover)}
+.point-slider-dots{display:flex;justify-content:center;gap:6px;padding:2px 0}
+.point-slider-dot{
+  width:6px;height:6px;border-radius:50%;background:var(--card-border);cursor:pointer;
+  flex-shrink:0;
+}
+.point-slider-dot.active{background:var(--blue);width:16px;border-radius:3px}
+.point-mobile-total{
+  background:var(--card);border:1.5px solid var(--card-border);border-radius:8px;overflow:hidden;
+}
+.point-mobile-total .point-slide-row{border-color:var(--card-border)}
+.point-mobile-total .point-slide-row:first-child{border-top:none}
+
 @media (max-width: 768px){
   .point-wrap{padding:8px;gap:8px}
   .point-body{flex-direction:column;overflow:auto}
-  .point-table-area{flex:none;max-height:46vh}
+  .point-table-area{display:none}
+  .point-mobile-area{display:flex}
   .point-side{width:100%;flex-direction:row;flex-wrap:wrap}
   .point-card{flex:1 1 45%}
 }
@@ -495,6 +537,15 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
             </thead>
             <tbody id="point-table-body"></tbody>
           </table>
+        </div>
+        <div class="point-mobile-area">
+          <div class="point-slider-wrap">
+            <button class="point-slide-nav-btn" onclick="pointSlideStep(-1)" aria-label="前の戦場"><i class="ti ti-chevron-left" aria-hidden="true"></i></button>
+            <div class="point-slider" id="point-slider"></div>
+            <button class="point-slide-nav-btn" onclick="pointSlideStep(1)" aria-label="次の戦場"><i class="ti ti-chevron-right" aria-hidden="true"></i></button>
+          </div>
+          <div class="point-slider-dots" id="point-slider-dots"></div>
+          <div class="point-mobile-total" id="point-mobile-total"></div>
         </div>
         <div class="point-side" id="point-side"></div>
       </div>
@@ -819,10 +870,61 @@ function calcClearPt(arcKey, stageIdx, stage){
   return Math.floor(normalPtRaw(arcKey, stageIdx, stage) + sortieBonus);
 }
 
+// ===== スマホ用スライド（1戦場=1カード）の状態 =====
+let pointSliderIndex = 0;
+let pointSliderArcKey = null;
+
+function defeatedCellMobileHTML(arcKey, stageIdx){
+  const key = pointKey(arcKey, stageIdx);
+  const selectedNames = pointSelections[key] || [];
+  if(selectedNames.length === 0){
+    return `<span class="point-defeat-placeholder" onclick="openEnemyModal('${arcKey}',${stageIdx})">選択</span>`;
+  }
+  const imgs = selectedNames.map(name => {
+    const g = GENERALS.find(x => x.name === name);
+    const src = g ? (safeImgUrl(g.img) || placeholderImg(g.name)) : placeholderImg(name);
+    const fallback = placeholderImg(name);
+    return `<img class="point-defeat-img" src="${escapeHtml(src)}" alt="${escapeHtml(name)}"
+      data-fallback="${escapeHtml(fallback)}" onerror="this.onerror=null;this.src=this.dataset.fallback">`;
+  }).join('');
+  return `<div class="point-defeat-imgs" onclick="openEnemyModal('${arcKey}',${stageIdx})">${imgs}</div>`;
+}
+
+function updatePointSliderDots(){
+  document.querySelectorAll('#point-slider-dots .point-slider-dot').forEach((d,i) => {
+    d.classList.toggle('active', i === pointSliderIndex);
+  });
+}
+
+function pointSlideGoTo(i){
+  const slider = document.getElementById('point-slider');
+  if(!slider || !slider.children.length) return;
+  pointSliderIndex = Math.max(0, Math.min(slider.children.length - 1, i));
+  slider.scrollTo({ left: pointSliderIndex * slider.clientWidth, behavior:'smooth' });
+  updatePointSliderDots();
+}
+function pointSlideStep(delta){ pointSlideGoTo(pointSliderIndex + delta); }
+
+function setupPointSliderScroll(){
+  const slider = document.getElementById('point-slider');
+  if(!slider || slider.dataset.listenerAdded) return;
+  slider.dataset.listenerAdded = '1';
+  let t;
+  slider.addEventListener('scroll', () => {
+    clearTimeout(t);
+    t = setTimeout(() => {
+      if(!slider.clientWidth) return;
+      const idx = Math.round(slider.scrollLeft / slider.clientWidth);
+      if(idx !== pointSliderIndex){ pointSliderIndex = idx; updatePointSliderDots(); }
+    }, 80);
+  });
+}
+
 function renderPointTab(){
   const select = document.getElementById('point-arc-select');
   const arc = POINT_ARCS.find(a => a.key === select.value) || POINT_ARCS[0];
   const stages = POINT_DATA[arc.label] || [];
+  if(pointSliderArcKey !== arc.key){ pointSliderIndex = 0; pointSliderArcKey = arc.key; }
 
   // 撃破Pt・クリアPtは実計算（floor済み）。Pt/sはまだダミー値、タイムは入力欄（ユーザー入力を保持）。
   const rows = stages.map((s, i) => {
@@ -860,6 +962,55 @@ function renderPointTab(){
       <td>-</td>
     </tr>
   `;
+
+  // ===== スマホ用スライド描画 =====
+  document.getElementById('point-slider').innerHTML = rows.map((r,i) => `
+    <div class="point-slide">
+      <div class="point-slide-title">${escapeHtml(r.stage)}</div>
+      <div class="point-slide-row">
+        <span class="point-slide-row-label">撃破武将</span>
+        ${defeatedCellMobileHTML(arc.key, i)}
+      </div>
+      <div class="point-slide-row">
+        <span class="point-slide-row-label">撃破Pt</span>
+        <span class="point-slide-row-value">${r.defeatPt.toLocaleString()}</span>
+      </div>
+      <div class="point-slide-row">
+        <span class="point-slide-row-label">クリアPt</span>
+        <span class="point-slide-row-value">${r.clearPt.toLocaleString()}</span>
+      </div>
+      <div class="point-slide-row">
+        <span class="point-slide-row-label">Pt/s</span>
+        <span class="point-slide-row-value">${r.pps}</span>
+      </div>
+      <div class="point-slide-row">
+        <span class="point-slide-row-label">タイム</span>
+        <input type="text" class="point-time-input" value="${escapeHtml(r.time)}" placeholder="00:00"
+          oninput="setPointTime('${arc.key}',${i},this.value)">
+      </div>
+    </div>
+  `).join('');
+
+  document.getElementById('point-slider-dots').innerHTML = rows.map((r,i) =>
+    `<span class="point-slider-dot${i===pointSliderIndex?' active':''}" onclick="pointSlideGoTo(${i})"></span>`
+  ).join('');
+
+  document.getElementById('point-mobile-total').innerHTML = `
+    <div class="point-slide-row">
+      <span class="point-slide-row-label">合計 撃破Pt</span>
+      <span class="point-slide-row-value">${totalDefeat.toLocaleString()}</span>
+    </div>
+    <div class="point-slide-row">
+      <span class="point-slide-row-label">合計 クリアPt</span>
+      <span class="point-slide-row-value">${totalClear.toLocaleString()}</span>
+    </div>
+  `;
+
+  setupPointSliderScroll();
+  requestAnimationFrame(() => {
+    const slider = document.getElementById('point-slider');
+    if(slider && slider.clientWidth) slider.scrollLeft = pointSliderIndex * slider.clientWidth;
+  });
 
   // 右下カード：1回目Ptは一番槍ボーナス・出撃回数ボーナスを含むクリアPtの合計（＝totalClear）。
   // 2回目・3回目Ptは一番槍ボーナスを含まない倍率で選択済み敵ポイント合計から算出する。
