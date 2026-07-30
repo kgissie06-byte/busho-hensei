@@ -257,7 +257,6 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
           <button class="sheet-close" onclick="closeSheet()">✕</button>
         </div>
         <input class="search-box" type="text" placeholder="武将名を入力" id="search-input"
-          name="off" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
           oninput="filterList()" onkeydown="handleSearchKeydown(event)">
         <div class="general-list" id="general-list"></div>
         <button class="confirm-btn" onclick="confirmSelection()">確定</button>
@@ -657,12 +656,6 @@ document.addEventListener('paste', (e) => {
 });
 
 async function init(){
-  const searchInputEl = document.getElementById('search-input');
-  if(searchInputEl){
-    // Chromeがautocomplete="off"を無視して入力履歴を出すのを防ぐため、
-    // フィールド名を毎回ランダム化して保存済みデータとマッチしないようにする
-    searchInputEl.setAttribute('name', 'general-search-' + Math.random().toString(36).slice(2));
-  }
   renderList(); // "読み込み中..." 表示
   render();
   try{

@@ -13,7 +13,7 @@ module.exports = async (req, res) => {
 
   try {
     const r = await fetch(
-      `${SUPABASE_URL}/rest/v1/chars?select=name,yomi,img&order=name.asc`,
+      `${SUPABASE_URL}/rest/v1/chars?select=name,yomi,img&order=yomi.asc`,
       {
         headers: {
           apikey: SERVICE_KEY,
