@@ -153,8 +153,8 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
   flex:1;min-height:0;display:flex;align-items:center;justify-content:center;
   background:repeating-conic-gradient(#e4ddc8 0% 25%, #d9d1b6 0% 50%) 50%/16px 16px;
 }
-.preview-stage-wrap{position:relative;height:100%;max-width:100%;margin:0 auto}
-.preview-stage-wrap img#preview-stage-img{width:100%;height:100%;display:block;object-fit:fill}
+.preview-stage-wrap{position:relative;max-width:100%;max-height:100%;margin:0 auto}
+.preview-stage-wrap img#preview-stage-img{width:100%;height:100%;display:block;object-fit:contain}
 .preview-overlay{position:absolute;inset:0;pointer-events:none}
 .preview-icon{
   position:absolute;border-radius:5px;object-fit:cover;
@@ -1193,6 +1193,11 @@ function togglePreview(){
   }
 }
 
+// 画面回転・ウィンドウリサイズ時にも、枠のサイズ(縦横比)を再計算する
+window.addEventListener('resize', () => {
+  if(previewOpen) renderPreviewOverlay();
+});
+
 // 討伐編（POINT_ARCS.key）は、stages.json の各戦場データに持たせた "arc" フィールドで
 // 明示的に紐付ける（例："秦国三大天➅": { arc: "qin", ... } → POINT_ARCS の key:'qin' に対応）。
 function stageKeysForArc(arcKey){
@@ -1257,6 +1262,26 @@ function onStageImageLoad(){
   renderPreviewOverlay();
 }
 
+// ステージ画像の縦横比を維持したまま、表示可能な範囲(preview-stage-outer)に収まる
+// 最大サイズを計算してwrapへ明示的にpx指定する（CSSのaspect-ratio+max-widthだけだと、
+// 横幅が狭い環境で幅だけ縮んで高さは100%のままになり、枠自体が歪んでしまうため）。
+function fitPreviewStage(wrap, refW, refH){
+  const outer = document.getElementById('preview-stage-outer');
+  if(!outer || !refW || !refH) return;
+  const availW = outer.clientWidth;
+  const availH = outer.clientHeight;
+  if(!availW || !availH) return;
+  const ratio = refW / refH;
+  let w = availW;
+  let h = w / ratio;
+  if(h > availH){
+    h = availH;
+    w = h * ratio;
+  }
+  wrap.style.width = `${w}px`;
+  wrap.style.height = `${h}px`;
+}
+
 function renderPreviewOverlay(){
   const empty = document.getElementById('preview-empty');
   const wrap = document.getElementById('preview-stage-wrap');
@@ -1294,7 +1319,7 @@ function renderPreviewOverlay(){
     overlay.innerHTML = ''; // 画像読み込み中。onStageImageLoadで再描画される
     return;
   }
-  wrap.style.aspectRatio = `${refW} / ${refH}`;
+  fitPreviewStage(wrap, refW, refH);
 
   overlay.innerHTML = COL_POINT_KEY.map((key, col) => {
     if(!key) return ''; // 軍師はマップ上に表示しない
