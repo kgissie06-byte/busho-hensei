@@ -365,7 +365,12 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 .point-cell-defeat:hover{background:var(--card-hover)}
 .point-defeat-imgs{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
 .point-defeat-img{width:26px;height:26px;border-radius:4px;object-fit:cover;border:1px solid var(--card-border)}
-.point-defeat-placeholder{color:var(--blue);font-size:12px;text-decoration:underline}
+.point-defeat-placeholder{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:22px;height:22px;border-radius:50%;
+  color:var(--blue);font-size:13px;
+  border:1.5px dashed var(--blue);
+}
 .point-time-input{
   width:56px;padding:3px 4px;font-size:12px;text-align:center;
   border:1px solid var(--card-border);background:#f8f4ea;
@@ -659,9 +664,12 @@ let pointClearCounts = {};
 let pointTimes = {};
 let enemyModalState = null; // { arcKey, stageIdx, enemies, checked:Set }
 
-// タイム入力欄の値を保持する（他の値に影響しないため再描画は行わない）
-function setPointTime(arcKey, stageIdx, value){
+// タイム入力欄の値を保持する。Pt/sはタイムに連動するため、
+// 入力欄フォーカスを保つよう表全体は再描画せず、Pt/sセルだけをその場で更新する。
+function setPointTime(arcKey, stageIdx, value, clearPt){
   pointTimes[pointKey(arcKey, stageIdx)] = value;
+  const cell = document.getElementById(`pps-${arcKey}-${stageIdx}`);
+  if(cell) cell.textContent = calcPps(clearPt, value);
 }
 
 const CLEAR_COUNT_OPTS = ['1回','2回','3回','4回','5回','6回','7回','8回','9回','10回','11回以上'];
@@ -743,7 +751,7 @@ function defeatedCellHTML(arcKey, stageIdx){
   const selectedNames = pointSelections[key] || [];
   if(selectedNames.length === 0){
     return `<td class="point-cell-defeat" onclick="openEnemyModal('${arcKey}',${stageIdx})">
-      <span class="point-defeat-placeholder">選択</span>
+      <span class="point-defeat-placeholder"><i class="ti ti-plus" aria-hidden="true"></i></span>
     </td>`;
   }
   const imgs = selectedNames.map(name => {
@@ -829,6 +837,22 @@ function calcClearPt(arcKey, stageIdx, stage){
   return Math.floor(normalPtRaw(arcKey, stageIdx, stage) + sortieBonus);
 }
 
+// タイム文字列（例:"1:10" → 70, "0:45" → 45）を秒数に変換する。
+// 解釈できない場合はnullを返す。
+function timeToSeconds(str){
+  if(typeof str !== 'string') return null;
+  const m = str.trim().match(/^(\d+):([0-5]?\d)$/);
+  if(!m) return null;
+  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+}
+
+// Pt/s ＝ クリアPt ÷ タイム(秒)。タイム未入力(0:00等)や不正値の場合は '-' を表示する。
+function calcPps(clearPt, timeStr){
+  const seconds = timeToSeconds(timeStr);
+  if(!seconds) return '-';
+  return (clearPt / seconds).toFixed(1);
+}
+
 function renderPointTab(){
   const select = document.getElementById('point-arc-select');
   const arc = POINT_ARCS.find(a => a.key === select.value) || null;
@@ -847,16 +871,18 @@ function renderPointTab(){
   }
   const stages = POINT_DATA[arc.label] || [];
 
-  // 撃破Pt・クリアPtは実計算（floor済み）。Pt/sはまだダミー値、タイムは入力欄（ユーザー入力を保持）。
+  // 撃破Pt・クリアPtは実計算（floor済み）。タイムはデフォルト0:00・入力欄（ユーザー入力を保持）。
+  // Pt/s ＝ クリアPt ÷ タイム(秒表示)。
   const rows = stages.map((s, i) => {
     const key = pointKey(arc.key, i);
-    const dummyTime = `0${1 + (i%3)}:${(10 + i*7)%60 < 10 ? '0' : ''}${(10 + i*7)%60}`;
+    const clearPt = calcClearPt(arc.key, i, s);
+    const time = pointTimes[key] !== undefined ? pointTimes[key] : '0:00';
     return {
       stage: s.stage,
       defeatPt: calcDefeatPt(arc.key, i, s),
-      clearPt: calcClearPt(arc.key, i, s),
-      pps: (12.5 + i*0.8).toFixed(1),
-      time: pointTimes[key] !== undefined ? pointTimes[key] : dummyTime,
+      clearPt,
+      pps: calcPps(clearPt, time),
+      time,
     };
   });
 
@@ -869,9 +895,9 @@ function renderPointTab(){
       ${defeatedCellHTML(arc.key, i)}
       <td>${r.defeatPt.toLocaleString()}</td>
       <td>${r.clearPt.toLocaleString()}</td>
-      <td>${r.pps}</td>
+      <td id="pps-${arc.key}-${i}">${r.pps}</td>
       <td><input type="text" class="point-time-input" value="${escapeHtml(r.time)}" placeholder="00:00"
-        oninput="setPointTime('${arc.key}',${i},this.value)"></td>
+        oninput="setPointTime('${arc.key}',${i},this.value,${r.clearPt})"></td>
     </tr>
   `).join('') + `
     <tr class="point-total-row">
