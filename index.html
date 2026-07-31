@@ -695,10 +695,12 @@ let pointRoadTime = '0:00';
 function setPointInterval(value){
   pointInterval = Math.max(0, parseInt(value, 10) || 0);
   const arcKey = document.getElementById('point-arc-select').value;
-  if(arcKey) updateTotalRow(arcKey);
+  if(arcKey){ updateTotalRow(arcKey); renderPointSide(arcKey); }
 }
 function setPointRoadTime(value){
   pointRoadTime = value;
+  const arcKey = document.getElementById('point-arc-select').value;
+  if(arcKey) renderPointSide(arcKey);
 }
 let enemyModalState = null; // { arcKey, stageIdx, enemies, checked:Set }
 
@@ -709,6 +711,7 @@ function setPointTime(arcKey, stageIdx, value, clearPt){
   const cell = document.getElementById(`pps-${arcKey}-${stageIdx}`);
   if(cell) cell.textContent = calcPps(clearPt, value);
   updateTotalRow(arcKey);
+  renderPointSide(arcKey);
 }
 
 const CLEAR_COUNT_OPTS = ['1回','2回','3回','4回','5回','6回','7回','8回','9回','10回','11回以上'];
@@ -876,6 +879,83 @@ function calcClearPt(arcKey, stageIdx, stage){
   return Math.floor(normalPtRaw(arcKey, stageIdx, stage) + sortieBonus);
 }
 
+// ===== 周回ルールに基づく1回目/2回目/3回目の区切りシミュレーション =====
+// ・各編は「1時間×3回」で周回する。前の回で最後にクリアした戦場の次の戦場から
+//   次の回が始まる（例：1回目が3戦場で終了→2回目は4戦場から）。
+// ・「1時間」判定は戦場に入る前の累計タイムで行う（60:00未満なら次の戦場に入れる）。
+// ・1回目のみ、開始前に下道タイム＋インターバルを消費してから1戦場に入る。
+// ・戦場は最終戦場までいったら1戦場に戻ってループする。
+// ・タイムが未入力（0:00）の戦場に到達したら、それ以降は計算不能なのでシミュレーションを打ち切る。
+// 戻り値：[round1の[{stageIdx,occurrence}], round2の[...], round3の[...]]
+const ROUND_LIMIT_SEC = 60 * 60;
+const MAX_SIMULATION_STEPS = 20000; // 暴走防止の安全キャップ
+function simulateRounds(arcKey, stages){
+  const stageCount = stages.length;
+  const roundStageOccurrences = [[], [], []];
+  if(stageCount === 0) return roundStageOccurrences;
+
+  const times = stages.map((s, i) => {
+    const key = pointKey(arcKey, i);
+    const t = pointTimes[key] !== undefined ? pointTimes[key] : '0:00';
+    return timeToSeconds(t) || 0;
+  });
+
+  const roadSec = timeToSeconds(pointRoadTime) || 0;
+  const stageOccurrenceCount = new Array(stageCount).fill(0);
+
+  let round = 0; // 0=1回目, 1=2回目, 2=3回目
+  let stageIdx = 0;
+  let firstStageOfRound = true;
+  // 1回目の1戦場に入る前は「下道タイム＋インターバル」を消費した状態から始まる
+  let cumulative = roadSec + pointInterval;
+  let steps = 0;
+
+  while(round < 3 && steps < MAX_SIMULATION_STEPS){
+    steps++;
+    const t = times[stageIdx];
+    if(t <= 0) break; // タイム未入力の戦場に到達＝それ以降は計算不能
+
+    if(!firstStageOfRound){
+      cumulative += pointInterval;
+    }
+
+    if(cumulative < ROUND_LIMIT_SEC){
+      stageOccurrenceCount[stageIdx]++;
+      roundStageOccurrences[round].push({ stageIdx, occurrence: stageOccurrenceCount[stageIdx] });
+      cumulative += t;
+      firstStageOfRound = false;
+      stageIdx = (stageIdx + 1) % stageCount;
+    }else{
+      // この回はここで終了。同じ戦場から次の回がスタートする
+      round++;
+      cumulative = 0;
+      firstStageOfRound = true;
+    }
+  }
+  return roundStageOccurrences;
+}
+
+// 1回分の戦場クリアで得られるポイント（端数floor）。
+// ・一番槍ボーナスは「1回目（最初の1時間）」で獲得するポイント全てに適用する
+//   （そのマスを何度目に通過したかは関係ない。1回目に含まれるかどうかだけで判定）。
+// ・出撃回数ボーナスは、撃破武将セルで設定した「クリア回数」固定値を使う
+//   （そのマスに何度入っても、そのマスの出撃回数は常に同じ値として計算する）。
+function pointsForRoundVisit(arcKey, stageIdx, stage, roundIndex){
+  const enemySum = selectedEnemyPointSum(arcKey, stageIdx, stage);
+  const multiplier = roundIndex === 0 ? MULTIPLIER_FIRST_RUN : MULTIPLIER_OTHER_RUN;
+  const sortieBonus = calcSortieCountBonus(arcKey, stageIdx, stage); // 固定値（クリア回数プルダウン）を使用
+  return Math.floor(enemySum * multiplier + sortieBonus);
+}
+
+// 指定した回（0=1回目,1=2回目,2=3回目）で得られる合計ポイント
+function calcRunPoints(arcKey, stages, roundStageOccurrences, roundIndex){
+  return roundStageOccurrences[roundIndex].reduce((sum, occ) => {
+    const stage = stages[occ.stageIdx];
+    if(!stage) return sum;
+    return sum + pointsForRoundVisit(arcKey, occ.stageIdx, stage, roundIndex);
+  }, 0);
+}
+
 // タイム文字列（例:"1:10" → 70, "0:45" → 45）を秒数に変換する。
 // 解釈できない場合はnullを返す。
 function timeToSeconds(str){
@@ -990,15 +1070,32 @@ function renderPointTab(){
     </tr>
   `;
 
-  // 右下カード：1回目Ptは一番槍ボーナス・出撃回数ボーナスを含むクリアPtの合計（＝totalClear）。
-  // 2回目・3回目Ptは一番槍ボーナスを含まない倍率で選択済み敵ポイント合計から算出する。
-  const totalEnemySum = totalSelectedEnemyPointSum(arc.key, stages);
-  const run1 = totalClear;
-  const run2 = Math.floor(totalEnemySum * MULTIPLIER_OTHER_RUN);
-  const run3 = Math.floor(totalEnemySum * MULTIPLIER_OTHER_RUN);
+  renderPointSide(arc.key);
+}
+
+// 右下カード（1回目Pt・2回目Pt・3回目Pt・合計Pt）を「1時間×3回」の周回ルールに
+// 基づいてシミュレーションし直し、その場で更新する（表本体は再描画しない）。
+function renderPointSide(arcKey){
+  const arc = POINT_ARCS.find(a => a.key === arcKey);
+  const side = document.getElementById('point-side');
+  if(!side) return;
+  if(!arc){
+    side.innerHTML = `
+      <div class="point-card"><span class="point-card-label">1回目Pt</span><span class="point-card-value">0</span></div>
+      <div class="point-card"><span class="point-card-label">2回目Pt</span><span class="point-card-value">0</span></div>
+      <div class="point-card"><span class="point-card-label">3回目Pt</span><span class="point-card-value">0</span></div>
+      <div class="point-card point-card-total"><span class="point-card-label">合計Pt</span><span class="point-card-value">0</span></div>
+    `;
+    return;
+  }
+  const stages = POINT_DATA[arc.label] || [];
+  const roundStageOccurrences = simulateRounds(arc.key, stages);
+  const run1 = calcRunPoints(arc.key, stages, roundStageOccurrences, 0);
+  const run2 = calcRunPoints(arc.key, stages, roundStageOccurrences, 1);
+  const run3 = calcRunPoints(arc.key, stages, roundStageOccurrences, 2);
   const runTotal = run1 + run2 + run3;
 
-  document.getElementById('point-side').innerHTML = `
+  side.innerHTML = `
     <div class="point-card">
       <span class="point-card-label">1回目Pt</span>
       <span class="point-card-value">${run1.toLocaleString()}</span>
