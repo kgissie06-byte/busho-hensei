@@ -269,6 +269,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
   border-radius:4px;color:var(--text);
 }
 .point-interval-input:focus{outline:none;border-color:var(--blue)}
+.point-firststrike-checkbox{width:16px;height:16px;accent-color:var(--blue);cursor:pointer}
 
 @media (max-width: 768px){
   .point-wrap{padding:8px;gap:8px}
@@ -541,6 +542,11 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
               <input type="text" class="point-time-input" id="point-road-time-input"
                 value="0:00" placeholder="00:00" oninput="setPointRoadTime(this.value)">
             </div>
+            <div class="point-extra-time-row">
+              <span class="point-extra-time-label">一番槍ボーナス：</span>
+              <input type="checkbox" class="point-firststrike-checkbox" id="point-firststrike-checkbox"
+                checked oninput="setPointFirstStrike(this.checked)">
+            </div>
           </div>
           <div class="point-table-area">
             <table class="point-table">
@@ -712,6 +718,9 @@ let pointTimes = {};
 // インターバル（秒・デフォルト5）と下道タイム（分:秒文字列）。表全体で共通の値。
 let pointInterval = 5;
 let pointRoadTime = '0:00';
+// 一番槍ボーナス：適用するかどうかは任意（デフォルトON）。表全体・右下カードの
+// 1回目Ptに影響するため、切り替え時は表を丸ごと再描画する。
+let pointFirstStrikeEnabled = true;
 function setPointInterval(value){
   pointInterval = Math.max(0, parseInt(value, 10) || 0);
   const arcKey = document.getElementById('point-arc-select').value;
@@ -721,6 +730,10 @@ function setPointRoadTime(value){
   pointRoadTime = value;
   const arcKey = document.getElementById('point-arc-select').value;
   if(arcKey) renderPointSide(arcKey);
+}
+function setPointFirstStrike(checked){
+  pointFirstStrikeEnabled = checked;
+  renderPointTab();
 }
 let enemyModalState = null; // { arcKey, stageIdx, enemies, checked:Set }
 
@@ -834,11 +847,14 @@ const ITEM_MULTIPLIER = 2;
 // 盟友集結倍率（発生中：1.05倍 ⇒ +0.05）
 const ALLY_MULTIPLIER = 0.05;
 // 一番槍ボーナス倍率（適用中：1.2倍 ⇒ +0.2）※1回目の獲得ポイントにのみ適用する
+// ※適用するかどうかは任意のため、pointFirstStrikeEnabled のON/OFFで加算するか切り替える
 const FIRST_STRIKE_MULTIPLIER = 0.2;
 
-// 1回目：討伐アイテム＋盟友＋一番槍をすべて適用
-const MULTIPLIER_FIRST_RUN = 1 + ITEM_MULTIPLIER + ALLY_MULTIPLIER + FIRST_STRIKE_MULTIPLIER;
-// 2回目以降：一番槍ボーナスは適用しない
+// 1回目：討伐アイテム＋盟友＋一番槍（ONの場合のみ）を適用
+function getMultiplierFirstRun(){
+  return 1 + ITEM_MULTIPLIER + ALLY_MULTIPLIER + (pointFirstStrikeEnabled ? FIRST_STRIKE_MULTIPLIER : 0);
+}
+// 2回目以降：一番槍ボーナスは常に適用しない
 const MULTIPLIER_OTHER_RUN = 1 + ITEM_MULTIPLIER + ALLY_MULTIPLIER;
 
 // ===== 出撃回数ボーナス倍率 =====
@@ -881,9 +897,10 @@ function calcSortieCountBonus(arcKey, stageIdx, stage){
 }
 
 // 通常ポイント（端数処理前）＝ 選択した敵ポイント合計 × (1 + 討伐アイテム倍率 + 盟友倍率 + 一番槍倍率)
+// ※撃破Pt・クリアPtの表示欄は常に「1回目扱い」の倍率（一番槍ON/OFF反映）で計算する
 function normalPtRaw(arcKey, stageIdx, stage){
   const enemyPointSum = selectedEnemyPointSum(arcKey, stageIdx, stage);
-  return enemyPointSum * MULTIPLIER_FIRST_RUN;
+  return enemyPointSum * getMultiplierFirstRun();
 }
 
 // 撃破Pt ＝ 一番槍ボーナス・討伐アイテム・盟友集結の倍率のみを含んだポイント
@@ -962,7 +979,7 @@ function simulateRounds(arcKey, stages){
 //   （そのマスに何度入っても、そのマスの出撃回数は常に同じ値として計算する）。
 function pointsForRoundVisit(arcKey, stageIdx, stage, roundIndex){
   const enemySum = selectedEnemyPointSum(arcKey, stageIdx, stage);
-  const multiplier = roundIndex === 0 ? MULTIPLIER_FIRST_RUN : MULTIPLIER_OTHER_RUN;
+  const multiplier = roundIndex === 0 ? getMultiplierFirstRun() : MULTIPLIER_OTHER_RUN;
   const sortieBonus = calcSortieCountBonus(arcKey, stageIdx, stage); // 固定値（クリア回数プルダウン）を使用
   return Math.floor(enemySum * multiplier + sortieBonus);
 }
