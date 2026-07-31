@@ -1,5 +1,66 @@
 {
+  "秦国三大天➀": {
+    "arc": "qin",
+    "image": "stages/shin_sandaiten6.png",
+    "points": {
+      "main": { "x": 192, "y": 129, "size": 60 },
+      "army1": { "x": 127, "y": 79, "size": 60 },
+      "army2": { "x": 256, "y": 182, "size": 60 },
+      "army3": { "x": 58, "y": 127, "size": 60 },
+      "army4": { "x": 125, "y": 186, "size": 60 },
+      "reinforce": { "x": 191, "y": 247, "size": 60 }
+    }
+  },
+  "秦国三大天➁": {
+    "arc": "qin",
+    "image": "stages/shin_sandaiten7.png",
+    "points": {
+      "main": { "x": 206, "y": 130, "size": 60 },
+      "army1": { "x": 143, "y": 88, "size": 60 },
+      "army2": { "x": 274, "y": 176, "size": 60 },
+      "army3": { "x": 84, "y": 151, "size": 60 },
+      "army4": { "x": 152, "y": 196, "size": 60 },
+      "reinforce": { "x": 219, "y": 238, "size": 60 }
+    }
+  },
+  "秦国三大天➂": {
+    "arc": "qin",
+    "image": "stages/shin_sandaiten8.png",
+    "points": {
+      "main": { "x": 333, "y": 85, "size": 70 },
+      "army1": { "x": 409, "y": 131, "size": 70 },
+      "army2": { "x": 726, "y": 304, "size": 70 },
+      "army3": { "x": 76, "y": 207, "size": 70 },
+      "army4": { "x": 526, "y": 475, "size": 70 },
+      "reinforce": { "x": 714, "y": 598, "size": 70 }
+    }
+  },
+  "秦国三大天➃": {
+    "arc": "qin",
+    "image": "stages/shin_sandaiten9.png",
+    "points": {
+      "main": { "x": 456, "y": 195, "size": 60 },
+      "army1": { "x": 405, "y": 132, "size": 60 },
+      "army2": { "x": 509, "y": 259, "size": 60 },
+      "army3": { "x": 353, "y": 71, "size": 60 },
+      "army4": { "x": 571, "y": 319, "size": 60 },
+      "reinforce": { "x": 96, "y": 217, "size": 60 }
+    }
+  },
+  "秦国三大天➄": {
+    "arc": "qin",
+    "image": "stages/shin_sandaiten10.png",
+    "points": {
+      "main": { "x": 276, "y": 199, "size": 65 },
+      "army1": { "x": 218, "y": 129, "size": 65 },
+      "army2": { "x": 335, "y": 271, "size": 65 },
+      "army3": { "x": 171, "y": 61, "size": 65 },
+      "army4": { "x": 385, "y": 345, "size": 65 },
+      "reinforce": { "x": 207, "y": 245, "size": 65 }
+    }
+  },
   "秦国三大天➅": {
+    "arc": "qin",
     "image": "stages/shin_sandaiten6.png",
     "points": {
       "main": { "x": 192, "y": 129, "size": 60 },
@@ -11,6 +72,7 @@
     }
   },
   "秦国三大天➆": {
+    "arc": "qin",
     "image": "stages/shin_sandaiten7.png",
     "points": {
       "main": { "x": 206, "y": 130, "size": 60 },
@@ -22,6 +84,7 @@
     }
   },
   "秦国三大天➇": {
+    "arc": "qin",
     "image": "stages/shin_sandaiten8.png",
     "points": {
       "main": { "x": 333, "y": 85, "size": 70 },
@@ -33,6 +96,7 @@
     }
   },
   "秦国三大天➈": {
+    "arc": "qin",
     "image": "stages/shin_sandaiten9.png",
     "points": {
       "main": { "x": 456, "y": 195, "size": 60 },
@@ -44,6 +108,7 @@
     }
   },
   "秦国三大天➉": {
+    "arc": "qin",
     "image": "stages/shin_sandaiten10.png",
     "points": {
       "main": { "x": 276, "y": 199, "size": 65 },

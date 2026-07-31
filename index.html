@@ -476,6 +476,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
         </div>
         <div class="preview-panel" id="preview-panel">
           <div class="preview-controls">
+            <select id="preview-arc-select" onchange="onArcSelectChange()"></select>
             <select id="stage-select" onchange="onStageSelectChange()"></select>
           </div>
           <div class="preview-stage-outer" id="preview-stage-outer">
@@ -1177,7 +1178,8 @@ function closeSheet(){
   document.getElementById('sheet-backdrop').classList.remove('open');
 }
 let previewOpen = false;
-let currentStageKey = null;
+let currentArcKey = null;   // 討伐編（POINT_ARCS の key）
+let currentStageKey = null; // 戦場（STAGE_LAYOUTS のキー）
 let stageImageNatural = { w: 0, h: 0 }; // 現在表示中のステージ画像の実ピクセルサイズ（onloadで自動取得）
 
 function togglePreview(){
@@ -1185,20 +1187,56 @@ function togglePreview(){
   document.getElementById('preview-panel').classList.toggle('open', previewOpen);
   document.getElementById('preview-toggle-btn').classList.toggle('on', previewOpen);
   if(previewOpen){
+    populateArcSelect();
     populateStageSelect();
     renderPreviewOverlay();
   }
 }
 
+// 討伐編（POINT_ARCS.key）は、stages.json の各戦場データに持たせた "arc" フィールドで
+// 明示的に紐付ける（例："秦国三大天➅": { arc: "qin", ... } → POINT_ARCS の key:'qin' に対応）。
+function stageKeysForArc(arcKey){
+  if(!arcKey) return [];
+  return Object.keys(STAGE_LAYOUTS).filter(k => STAGE_LAYOUTS[k] && STAGE_LAYOUTS[k].arc === arcKey);
+}
+
+function populateArcSelect(){
+  const sel = document.getElementById('preview-arc-select');
+  const placeholder = `<option value="">討伐編を選択</option>`;
+  sel.innerHTML = placeholder + POINT_ARCS.map(a =>
+    `<option value="${escapeHtml(a.key)}">${escapeHtml(a.label)}</option>`).join('');
+  if(currentArcKey && !POINT_ARCS.some(a => a.key === currentArcKey)){
+    currentArcKey = null;
+  }
+  sel.value = currentArcKey || '';
+}
+
 function populateStageSelect(){
   const sel = document.getElementById('stage-select');
-  const keys = Object.keys(STAGE_LAYOUTS);
-  const placeholder = `<option value="">選択してください</option>`;
+  if(!currentArcKey){
+    sel.innerHTML = `<option value="">先に討伐編を選択してください</option>`;
+    sel.disabled = true;
+    sel.value = '';
+    currentStageKey = null;
+    return;
+  }
+  sel.disabled = false;
+  const keys = stageKeysForArc(currentArcKey);
+  const placeholder = keys.length
+    ? `<option value="">戦場を選択してください</option>`
+    : `<option value="">この編の戦場データがありません</option>`;
   sel.innerHTML = placeholder + keys.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
   if(currentStageKey && !keys.includes(currentStageKey)){
     currentStageKey = null;
   }
   sel.value = currentStageKey || '';
+}
+
+function onArcSelectChange(){
+  currentArcKey = document.getElementById('preview-arc-select').value || null;
+  currentStageKey = null;
+  populateStageSelect();
+  renderPreviewOverlay();
 }
 
 function onStageSelectChange(){
@@ -1227,7 +1265,7 @@ function renderPreviewOverlay(){
 
   const layout = currentStageKey ? STAGE_LAYOUTS[currentStageKey] : null;
   if(!layout){
-    empty.textContent = 'ステージを選択してください';
+    empty.textContent = currentArcKey ? '戦場を選択してください' : '討伐編を選択してください';
     empty.style.display = 'flex';
     wrap.style.display = 'none';
     return;
