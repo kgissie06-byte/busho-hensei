@@ -240,7 +240,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
   border:1px solid #e0d8c0;white-space:nowrap;
 }
 .point-table tbody tr:hover{background:var(--card-hover)}
-.point-table td.point-cell-stage{text-align:left;color:var(--text)}
+.point-table td.point-cell-stage{text-align:center;color:var(--text)}
 .point-table tr.point-total-row{background:var(--card);font-weight:600}
 .point-table tr.point-total-row td{border-top:1.5px solid var(--card-border)}
 .point-table tr.point-total-row td.point-cell-empty{color:var(--text-muted)}
@@ -392,6 +392,8 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 }
 
 /* 撃破武将セル（クリックで敵選択モーダルを開く） */
+.point-table th:nth-child(2),
+.point-table td:nth-child(2){width:158px;max-width:158px}
 .point-cell-defeat{cursor:pointer;text-align:left}
 .point-cell-defeat:hover{background:var(--card-hover)}
 .point-defeat-imgs{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
