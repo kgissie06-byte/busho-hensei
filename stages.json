@@ -1,7 +1,7 @@
 {
   "趙国三大天➅": {
     "arc": "zhao",
-    "img": "stages/cho_sandaiten6.png",
+    "image": "stages/cho_sandaiten6.png",
     "points": {
       "main": { "x": 265, "y": 129, "size": 70 },
       "army1": { "x": 173, "y": 60, "size": 70 },
@@ -13,7 +13,7 @@
   },
   "趙国三大天➆": {
     "arc": "zhao",
-    "img": "stages/cho_sandaiten7.png",
+    "image": "stages/cho_sandaiten7.png",
     "points": {
       "main": { "x": 246, "y": 98, "size": 80 },
       "army1": { "x": 108, "y": 98, "size": 80 },
@@ -25,7 +25,7 @@
   },
   "趙国三大天➇": {
     "arc": "zhao",
-    "img": "stages/cho_sandaiten8.png",
+    "image": "stages/cho_sandaiten8.png",
     "points": {
       "main": { "x": 346, "y": 171, "size": 70 },
       "army1": { "x": 204, "y": 56, "size": 70 },
@@ -37,7 +37,7 @@
   },
   "趙国三大天➈": {
     "arc": "zhao",
-    "img": "stages/cho_sandaiten9.png",
+    "image": "stages/cho_sandaiten9.png",
     "points": {
       "main": { "x": 214, "y": 112, "size": 60 },
       "army1": { "x": 148, "y": 56, "size": 60 },
@@ -49,7 +49,7 @@
   },
   "趙国三大天➉": {
     "arc": "zhao",
-    "img": "stages/cho_sandaiten10.png",
+    "image": "stages/cho_sandaiten10.png",
     "points": {
       "main": { "x": 389, "y": 285, "size": 70 },
       "army1": { "x": 313, "y": 233, "size": 70 },
@@ -133,7 +133,7 @@
   },
   "魏国三大天➁": {
     "arc": "gi",
-    "img": "stages/gi_sandaiten2.png",
+    "image": "stages/gi_sandaiten2.png",
     "points": {
       "main": { "x": 109, "y": 129, "size": 60 },
       "army1": { "x": 109, "y": 50, "size": 60 },
@@ -145,7 +145,7 @@
   },
   "魏国三大天➂": {
     "arc": "gi",
-    "img": "stages/gi_sandaiten3.png",
+    "image": "stages/gi_sandaiten3.png",
     "points": {
       "main": { "x": 323, "y": 129, "size": 65 },
       "army1": { "x": 499, "y": 270, "size": 65 },
@@ -157,7 +157,7 @@
   },
   "魏国三大天➃": {
     "arc": "gi",
-    "img": "stages/gi_sandaiten4.png",
+    "image": "stages/gi_sandaiten4.png",
     "points": {
       "main": { "x": 148, "y": 65, "size": 50 },
       "army1": { "x": 199, "y": 115, "size": 50 },
@@ -169,7 +169,7 @@
   },
   "魏国三大天➄": {
     "arc": "gi",
-    "img": "stages/gi_sandaiten5.png",
+    "image": "stages/gi_sandaiten5.png",
     "points": {
       "main": { "x": 142, "y": 170, "size": 70 },
       "army1": { "x": 65, "y": 121, "size": 70 },

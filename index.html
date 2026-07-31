@@ -506,7 +506,6 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
   <div id="tab-point" style="display:none">
     <div class="point-wrap">
       <div class="point-header">
-        <span class="point-header-label">討伐編</span>
         <select class="point-select" id="point-arc-select" onchange="renderPointTab()"></select>
       </div>
       <div class="point-body">
@@ -1016,7 +1015,7 @@ function renderPointTab(){
 
   if(!arc){
     document.getElementById('point-table-body').innerHTML = `
-      <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:16px 6px">討伐編を選択してください</td></tr>
+      <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:16px 6px">編を選択してください</td></tr>
     `;
     document.getElementById('point-side').innerHTML = `
       <div class="point-card"><span class="point-card-label">1回目Pt</span><span class="point-card-value">0</span></div>
@@ -1207,7 +1206,7 @@ function stageKeysForArc(arcKey){
 
 function populateArcSelect(){
   const sel = document.getElementById('preview-arc-select');
-  const placeholder = `<option value="">討伐編を選択</option>`;
+  const placeholder = `<option value="">編を選択</option>`;
   sel.innerHTML = placeholder + POINT_ARCS.map(a =>
     `<option value="${escapeHtml(a.key)}">${escapeHtml(a.label)}</option>`).join('');
   if(currentArcKey && !POINT_ARCS.some(a => a.key === currentArcKey)){
@@ -1219,7 +1218,7 @@ function populateArcSelect(){
 function populateStageSelect(){
   const sel = document.getElementById('stage-select');
   if(!currentArcKey){
-    sel.innerHTML = `<option value="">先に討伐編を選択してください</option>`;
+    sel.innerHTML = `<option value="">先に編を選択してください</option>`;
     sel.disabled = true;
     sel.value = '';
     currentStageKey = null;
@@ -1290,7 +1289,7 @@ function renderPreviewOverlay(){
 
   const layout = currentStageKey ? STAGE_LAYOUTS[currentStageKey] : null;
   if(!layout){
-    empty.textContent = currentArcKey ? '戦場を選択してください' : '討伐編を選択してください';
+    empty.textContent = currentArcKey ? '戦場を選択してください' : '編を選択してください';
     empty.style.display = 'flex';
     wrap.style.display = 'none';
     return;
