@@ -205,6 +205,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 .point-select:focus{outline:none;border-color:var(--blue)}
 
 .point-body{flex:1;display:flex;gap:10px;min-height:0}
+.point-table-col{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;min-height:0}
 .point-table-area{
   flex:1 1 auto;min-width:0;align-self:flex-start;max-height:100%;overflow:auto;
   background:#f8f4ea;border:1px solid var(--card-border);border-radius:6px;
@@ -240,9 +241,21 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 .point-card.point-card-total .point-card-label{color:var(--blue)}
 .point-card.point-card-total .point-card-value{color:var(--blue)}
 
+/* インターバル・下道タイム入力欄（表の枠外・右上） */
+.point-extra-times{flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px;padding:0 2px 10px}
+.point-extra-time-row{display:flex;align-items:center;gap:6px}
+.point-extra-time-label{font-size:12px;color:var(--text-muted);white-space:nowrap}
+.point-interval-input{
+  width:56px;padding:3px 4px;font-size:12px;text-align:center;
+  border:1px solid var(--card-border);background:#f8f4ea;
+  border-radius:4px;color:var(--text);
+}
+.point-interval-input:focus{outline:none;border-color:var(--blue)}
+
 @media (max-width: 768px){
   .point-wrap{padding:8px;gap:8px}
   .point-body{flex-direction:column;overflow:hidden}
+  .point-table-col{flex:0 1 auto;min-height:0}
   .point-table-area{flex:0 1 auto;min-height:0;max-height:none;align-self:stretch;-webkit-overflow-scrolling:touch}
   .point-table{width:auto;min-width:640px}
   .point-table th:first-child,
@@ -496,20 +509,34 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
         <select class="point-select" id="point-arc-select" onchange="renderPointTab()"></select>
       </div>
       <div class="point-body">
-        <div class="point-table-area">
-          <table class="point-table">
-            <thead>
-              <tr>
-                <th>戦場</th>
-                <th>撃破武将</th>
-                <th>撃破Pt</th>
-                <th>クリアPt</th>
-                <th>Pt/s</th>
-                <th>タイム</th>
-              </tr>
-            </thead>
-            <tbody id="point-table-body"></tbody>
-          </table>
+        <div class="point-table-col">
+          <div class="point-extra-times">
+            <div class="point-extra-time-row">
+              <span class="point-extra-time-label">インターバル：</span>
+              <input type="number" class="point-interval-input" id="point-interval-input"
+                value="5" min="0" step="1" oninput="setPointInterval(this.value)">
+            </div>
+            <div class="point-extra-time-row">
+              <span class="point-extra-time-label">下道タイム：</span>
+              <input type="text" class="point-time-input" id="point-road-time-input"
+                value="0:00" placeholder="00:00" oninput="setPointRoadTime(this.value)">
+            </div>
+          </div>
+          <div class="point-table-area">
+            <table class="point-table">
+              <thead>
+                <tr>
+                  <th>戦場</th>
+                  <th>撃破武将</th>
+                  <th>撃破Pt</th>
+                  <th>クリアPt</th>
+                  <th>Pt/s</th>
+                  <th>タイム</th>
+                </tr>
+              </thead>
+              <tbody id="point-table-body"></tbody>
+            </table>
+          </div>
         </div>
         <div class="point-side" id="point-side"></div>
       </div>
@@ -662,6 +689,17 @@ let pointSelections = {};
 let pointClearCounts = {};
 // pointTimes: ユーザーが入力したタイム（キーは pointKey と同じ形式）
 let pointTimes = {};
+// インターバル（秒・デフォルト5）と下道タイム（分:秒文字列）。表全体で共通の値。
+let pointInterval = 5;
+let pointRoadTime = '0:00';
+function setPointInterval(value){
+  pointInterval = Math.max(0, parseInt(value, 10) || 0);
+  const arcKey = document.getElementById('point-arc-select').value;
+  if(arcKey) updateTotalRow(arcKey);
+}
+function setPointRoadTime(value){
+  pointRoadTime = value;
+}
 let enemyModalState = null; // { arcKey, stageIdx, enemies, checked:Set }
 
 // タイム入力欄の値を保持する。Pt/sはタイムに連動するため、
@@ -861,13 +899,20 @@ function secondsToTimeStr(sec){
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-// 指定した討伐編（アーク）の合計タイム（各行タイムの合計・秒）を算出する。
+// 指定した討伐編（アーク）の合計タイム（秒）を算出する。
+// 各戦場のタイムの合計＋（タイムが入力済みの戦場数）×インターバル
+// （各戦場終了後にインターバル分を加算するイメージ）。
 function calcTotalSeconds(arcKey, stages){
-  return stages.reduce((sum, s, i) => {
+  let sum = 0;
+  let clearedCount = 0;
+  stages.forEach((s, i) => {
     const key = pointKey(arcKey, i);
     const time = pointTimes[key] !== undefined ? pointTimes[key] : '0:00';
-    return sum + (timeToSeconds(time) || 0);
-  }, 0);
+    const seconds = timeToSeconds(time) || 0;
+    sum += seconds;
+    if(seconds > 0) clearedCount++;
+  });
+  return sum + clearedCount * pointInterval;
 }
 
 // 合計行のタイム・Pt/sセルをその場で更新する（タイム入力欄のフォーカスを保つため）。
