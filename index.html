@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>編成</title>
+<title>討伐シミュレーター</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
@@ -18,7 +18,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="icon/favicon-16x16.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="編成">
+<meta name="apple-mobile-web-app-title" content="討伐シミュレーター">
 
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -1015,7 +1015,7 @@ function renderPointTab(){
 
   if(!arc){
     document.getElementById('point-table-body').innerHTML = `
-      <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:16px 6px">編を選択してください</td></tr>
+      <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:16px 6px">討伐編を選択してください</td></tr>
     `;
     document.getElementById('point-side').innerHTML = `
       <div class="point-card"><span class="point-card-label">1回目Pt</span><span class="point-card-value">0</span></div>
@@ -1206,7 +1206,7 @@ function stageKeysForArc(arcKey){
 
 function populateArcSelect(){
   const sel = document.getElementById('preview-arc-select');
-  const placeholder = `<option value="">編を選択</option>`;
+  const placeholder = `<option value="">討伐編を選択</option>`;
   sel.innerHTML = placeholder + POINT_ARCS.map(a =>
     `<option value="${escapeHtml(a.key)}">${escapeHtml(a.label)}</option>`).join('');
   if(currentArcKey && !POINT_ARCS.some(a => a.key === currentArcKey)){
@@ -1218,7 +1218,7 @@ function populateArcSelect(){
 function populateStageSelect(){
   const sel = document.getElementById('stage-select');
   if(!currentArcKey){
-    sel.innerHTML = `<option value="">先に編を選択してください</option>`;
+    sel.innerHTML = `<option value="">先に討伐編を選択してください</option>`;
     sel.disabled = true;
     sel.value = '';
     currentStageKey = null;
@@ -1289,14 +1289,14 @@ function renderPreviewOverlay(){
 
   const layout = currentStageKey ? STAGE_LAYOUTS[currentStageKey] : null;
   if(!layout){
-    empty.textContent = currentArcKey ? '戦場を選択してください' : '編を選択してください';
+    empty.textContent = currentArcKey ? '戦場を選択してください' : '討伐編を選択してください';
     empty.style.display = 'flex';
     wrap.style.display = 'none';
     return;
   }
   if(!layout.image || !layout.points){
     console.error(`STAGE_LAYOUTS['${currentStageKey}'] の形式が正しくありません。image/pointsが揃っているか確認してください。`, layout);
-    empty.textContent = `「${currentStageKey}」の配置データが正しく設定されていません（image/pointsを確認してください）`;
+    empty.textContent = `エラー`;
     empty.style.display = 'flex';
     wrap.style.display = 'none';
     return;
