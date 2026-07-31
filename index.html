@@ -243,16 +243,17 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 @media (max-width: 768px){
   .point-wrap{padding:8px;gap:8px}
   .point-body{flex-direction:column;overflow:hidden}
-  .point-table-area{flex:1 1 auto;min-height:0;max-height:none;align-self:stretch;-webkit-overflow-scrolling:touch}
+  .point-table-area{flex:0 1 auto;min-height:0;max-height:none;align-self:stretch;-webkit-overflow-scrolling:touch}
   .point-table{width:auto;min-width:640px}
   .point-table th:first-child,
   .point-table td:first-child{
     position:sticky;left:0;
+    box-shadow:inset -1px 0 0 var(--card-border);
   }
   .point-table th:first-child{background:var(--panel);z-index:2}
   .point-table td:first-child{background:#f8f4ea;z-index:1}
   .point-table tbody tr:hover td:first-child{background:var(--card-hover)}
-  .point-table tr.point-total-row td:first-child{background:var(--card)}
+  .point-table tr.point-total-row td:first-child{background:var(--card);box-shadow:inset -1px 1.5px 0 var(--card-border)}
   .point-side{width:100%;flex-direction:row;flex-wrap:wrap;flex-shrink:0}
   .point-card{flex:1 1 45%}
 }
