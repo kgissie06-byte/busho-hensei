@@ -368,8 +368,8 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 .point-defeat-placeholder{
   display:inline-flex;align-items:center;justify-content:center;
   width:22px;height:22px;border-radius:50%;
-  color:var(--blue);font-size:13px;
-  border:1.5px dashed var(--blue);
+  color:#8a8070;font-size:13px;
+  border:1.5px dashed #8a8070;
 }
 .point-time-input{
   width:56px;padding:3px 4px;font-size:12px;text-align:center;
@@ -670,6 +670,7 @@ function setPointTime(arcKey, stageIdx, value, clearPt){
   pointTimes[pointKey(arcKey, stageIdx)] = value;
   const cell = document.getElementById(`pps-${arcKey}-${stageIdx}`);
   if(cell) cell.textContent = calcPps(clearPt, value);
+  updateTotalRow(arcKey);
 }
 
 const CLEAR_COUNT_OPTS = ['1回','2回','3回','4回','5回','6回','7回','8回','9回','10回','11回以上'];
@@ -853,6 +854,36 @@ function calcPps(clearPt, timeStr){
   return (clearPt / seconds).toFixed(1);
 }
 
+// 秒数 → "M:SS" 形式の文字列に変換する（合計タイム表示用）。
+function secondsToTimeStr(sec){
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+// 指定した討伐編（アーク）の合計タイム（各行タイムの合計・秒）を算出する。
+function calcTotalSeconds(arcKey, stages){
+  return stages.reduce((sum, s, i) => {
+    const key = pointKey(arcKey, i);
+    const time = pointTimes[key] !== undefined ? pointTimes[key] : '0:00';
+    return sum + (timeToSeconds(time) || 0);
+  }, 0);
+}
+
+// 合計行のタイム・Pt/sセルをその場で更新する（タイム入力欄のフォーカスを保つため）。
+function updateTotalRow(arcKey){
+  const arc = POINT_ARCS.find(a => a.key === arcKey);
+  if(!arc) return;
+  const stages = POINT_DATA[arc.label] || [];
+  const totalClear = stages.reduce((sum, s, i) => sum + calcClearPt(arcKey, i, s), 0);
+  const totalSeconds = calcTotalSeconds(arcKey, stages);
+  const totalTimeStr = totalSeconds > 0 ? secondsToTimeStr(totalSeconds) : '0:00';
+  const timeCell = document.getElementById(`total-time-${arcKey}`);
+  if(timeCell) timeCell.textContent = totalTimeStr;
+  const ppsCell = document.getElementById(`total-pps-${arcKey}`);
+  if(ppsCell) ppsCell.textContent = calcPps(totalClear, totalTimeStr);
+}
+
 function renderPointTab(){
   const select = document.getElementById('point-arc-select');
   const arc = POINT_ARCS.find(a => a.key === select.value) || null;
@@ -888,6 +919,10 @@ function renderPointTab(){
 
   const totalDefeat = rows.reduce((sum,r)=>sum + r.defeatPt, 0);
   const totalClear = rows.reduce((sum,r)=>sum + r.clearPt, 0);
+  // 合計タイム＝表の各行タイムの合計。合計Pt/s＝合計クリアPt÷合計タイム(秒)。
+  const totalSeconds = calcTotalSeconds(arc.key, stages);
+  const totalTimeStr = totalSeconds > 0 ? secondsToTimeStr(totalSeconds) : '0:00';
+  const totalPps = calcPps(totalClear, totalTimeStr);
 
   document.getElementById('point-table-body').innerHTML = rows.map((r,i) => `
     <tr>
@@ -905,8 +940,8 @@ function renderPointTab(){
       <td class="point-cell-empty"></td>
       <td>${totalDefeat.toLocaleString()}</td>
       <td>${totalClear.toLocaleString()}</td>
-      <td>-</td>
-      <td>-</td>
+      <td id="total-pps-${arc.key}">${totalPps}</td>
+      <td id="total-time-${arc.key}">${totalTimeStr}</td>
     </tr>
   `;
 
