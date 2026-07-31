@@ -242,8 +242,8 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 
 @media (max-width: 768px){
   .point-wrap{padding:8px;gap:8px}
-  .point-body{flex-direction:column;overflow:auto}
-  .point-table-area{flex:none;max-height:56vh;-webkit-overflow-scrolling:touch}
+  .point-body{flex-direction:column;overflow:hidden}
+  .point-table-area{flex:1 1 auto;min-height:0;max-height:none;align-self:stretch;-webkit-overflow-scrolling:touch}
   .point-table{width:auto;min-width:640px}
   .point-table th:first-child,
   .point-table td:first-child{
@@ -253,7 +253,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
   .point-table td:first-child{background:#f8f4ea;z-index:1}
   .point-table tbody tr:hover td:first-child{background:var(--card-hover)}
   .point-table tr.point-total-row td:first-child{background:var(--card)}
-  .point-side{width:100%;flex-direction:row;flex-wrap:wrap}
+  .point-side{width:100%;flex-direction:row;flex-wrap:wrap;flex-shrink:0}
   .point-card{flex:1 1 45%}
 }
 
@@ -830,7 +830,20 @@ function calcClearPt(arcKey, stageIdx, stage){
 
 function renderPointTab(){
   const select = document.getElementById('point-arc-select');
-  const arc = POINT_ARCS.find(a => a.key === select.value) || POINT_ARCS[0];
+  const arc = POINT_ARCS.find(a => a.key === select.value) || null;
+
+  if(!arc){
+    document.getElementById('point-table-body').innerHTML = `
+      <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:16px 6px">討伐編を選択してください</td></tr>
+    `;
+    document.getElementById('point-side').innerHTML = `
+      <div class="point-card"><span class="point-card-label">1回目Pt</span><span class="point-card-value">0</span></div>
+      <div class="point-card"><span class="point-card-label">2回目Pt</span><span class="point-card-value">0</span></div>
+      <div class="point-card"><span class="point-card-label">3回目Pt</span><span class="point-card-value">0</span></div>
+      <div class="point-card point-card-total"><span class="point-card-label">合計Pt</span><span class="point-card-value">0</span></div>
+    `;
+    return;
+  }
   const stages = POINT_DATA[arc.label] || [];
 
   // 撃破Pt・クリアPtは実計算（floor済み）。Pt/sはまだダミー値、タイムは入力欄（ユーザー入力を保持）。
@@ -900,7 +913,9 @@ function renderPointTab(){
 
 function setupPointTab(){
   const select = document.getElementById('point-arc-select');
-  select.innerHTML = POINT_ARCS.map(a => `<option value="${a.key}">${escapeHtml(a.label)}</option>`).join('');
+  select.innerHTML = `<option value="">選択してください</option>` +
+    POINT_ARCS.map(a => `<option value="${a.key}">${escapeHtml(a.label)}</option>`).join('');
+  select.value = '';
   renderPointTab();
 }
 setupPointTab();
@@ -974,9 +989,10 @@ function togglePreview(){
 function populateStageSelect(){
   const sel = document.getElementById('stage-select');
   const keys = Object.keys(STAGE_LAYOUTS);
-  sel.innerHTML = keys.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
-  if(!currentStageKey || !keys.includes(currentStageKey)){
-    currentStageKey = keys[0] || null;
+  const placeholder = `<option value="">選択してください</option>`;
+  sel.innerHTML = placeholder + keys.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
+  if(currentStageKey && !keys.includes(currentStageKey)){
+    currentStageKey = null;
   }
   sel.value = currentStageKey || '';
 }
