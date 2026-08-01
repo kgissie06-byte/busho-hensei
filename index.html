@@ -129,7 +129,10 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 .slot-card:hover{border-color:#8899cc}
 .slot-card.selected{border:2.5px solid var(--card-selected);background:#dce8f8}
 .slot-card.empty-slot{background:#e8e2d0}
-.slot-card-img{width:100%;height:100%;object-fit:cover;display:block}
+.slot-card,.slot-card-img{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-user-drag:none}
+.slot-card.dragging{transform:scale(1.08);z-index:5;border-color:#c08030;background:#f5ead0;box-shadow:0 4px 14px rgba(0,0,0,0.28)}
+.slot-card.drag-target{border:2.5px dashed var(--card-selected);background:#dce8f8}
+.slot-card-img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
 .slot-icon{font-size:10px;color:#b0a080;text-align:center;line-height:1.5;white-space:pre-line}
 .slot-name{font-size:11px;color:var(--text);font-weight:500;text-align:center;padding:0 2px}
 .slot-name-under{
@@ -355,7 +358,9 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
   .col-divider{margin:1px 0}
 }
 .icon-btn.on{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
-.icon-btn.swap-icon-btn{display:none}
+@media (min-width: 769px){
+  .icon-btn.swap-icon-btn{display:none}
+}
 
 /* 編成データ貼り付け（復元）モーダル */
 .load-modal-backdrop{
@@ -1502,6 +1507,84 @@ function clickSlot(col,role){
     if(input) setTimeout(()=>input.focus(),260);
   }
 }
+// ===== 長押しドラッグによる入替（モバイル） =====
+const LONG_PRESS_MS = 380;
+const DRAG_CANCEL_PX = 10;
+let dragState = null;      // {col,role,startX,startY,active,timer}
+let dragTargetEl = null;
+
+function slotTouchStart(e,col,role){
+  if(swapMode) return; // 既存のスワップモード操作と競合させない
+  if(e.touches.length !== 1) return;
+  const t = e.touches[0];
+  dragState = {
+    col, role,
+    startX: t.clientX, startY: t.clientY,
+    active: false,
+    timer: setTimeout(()=>startDrag(col,role), LONG_PRESS_MS)
+  };
+}
+function slotTouchMove(e){
+  if(!dragState) return;
+  const t = e.touches[0];
+  const dx = t.clientX - dragState.startX, dy = t.clientY - dragState.startY;
+  if(!dragState.active){
+    if(Math.abs(dx) > DRAG_CANCEL_PX || Math.abs(dy) > DRAG_CANCEL_PX){
+      clearTimeout(dragState.timer);
+      dragState = null;
+    }
+    return;
+  }
+  e.preventDefault(); // ドラッグ中は画面スクロールを止める
+  updateDragTarget(t.clientX, t.clientY);
+}
+function slotTouchEnd(e){
+  if(!dragState) return;
+  clearTimeout(dragState.timer);
+  if(dragState.active){
+    e.preventDefault(); // ドラッグ後にタップ（武将選択シート）が開かないようにする
+    finishDrag();
+  }
+  dragState = null;
+}
+function startDrag(col,role){
+  if(!dragState) return;
+  dragState.active = true;
+  if(navigator.vibrate) navigator.vibrate(15);
+  const el = document.querySelector(`.slot-card[data-col="${col}"][data-role="${role}"]`);
+  if(el) el.classList.add('dragging');
+}
+function updateDragTarget(x,y){
+  const el = document.elementFromPoint(x,y);
+  const card = el ? el.closest('.slot-card') : null;
+  if(dragTargetEl && dragTargetEl !== card){
+    dragTargetEl.classList.remove('drag-target');
+    dragTargetEl = null;
+  }
+  if(card && !(card.dataset.col === String(dragState.col) && card.dataset.role === dragState.role)){
+    card.classList.add('drag-target');
+    dragTargetEl = card;
+  }
+}
+function finishDrag(){
+  const sourceEl = document.querySelector(`.slot-card[data-col="${dragState.col}"][data-role="${dragState.role}"]`);
+  if(sourceEl) sourceEl.classList.remove('dragging');
+  if(dragTargetEl){
+    const tCol = Number(dragTargetEl.dataset.col);
+    const tRole = dragTargetEl.dataset.role;
+    dragTargetEl.classList.remove('drag-target');
+    dragTargetEl = null;
+    const a = {col: dragState.col, role: dragState.role};
+    const b = {col: tCol, role: tRole};
+    if(!(a.col===b.col && a.role===b.role)){
+      const tmp = slots[a.col][a.role];
+      slots[a.col][a.role] = slots[b.col][b.role];
+      slots[b.col][b.role] = tmp;
+    }
+  }
+  render();
+}
+
 function cycleTiming(col){ timings[col]=(timings[col]+1)%TIMING_OPTS.length; render(); }
 function cyclePolicy(col){ policies[col]=(policies[col]+1)%POLICY_OPTS.length; render(); }
 
@@ -1511,14 +1594,20 @@ function slotCardHTML(col,role){
     ? !!(swapFirst && swapFirst.col===col && swapFirst.role===role)
     : !!(selectedSlot && selectedSlot.col===col && selectedSlot.role===role);
   const selClass = isSel ? ' selected' : '';
+  const touchAttrs = `data-col="${col}" data-role="${role}"
+      ontouchstart="slotTouchStart(event,${col},'${role}')"
+      ontouchmove="slotTouchMove(event)"
+      ontouchend="slotTouchEnd(event)"
+      ontouchcancel="slotTouchEnd(event)"
+      oncontextmenu="return false"`;
   if(g){
     const safeSrc = safeImgUrl(g.img) || placeholderImg(g.name);
     const fallback = placeholderImg(g.name);
-    return `<div class="slot-card${selClass}" onclick="clickSlot(${col},'${role}')">
-      <img class="slot-card-img" src="${escapeHtml(safeSrc)}" alt="${escapeHtml(g.name)}" data-fallback="${escapeHtml(fallback)}" onerror="this.onerror=null;this.src=this.dataset.fallback">
+    return `<div class="slot-card${selClass}" ${touchAttrs} onclick="clickSlot(${col},'${role}')">
+      <img class="slot-card-img" src="${escapeHtml(safeSrc)}" alt="${escapeHtml(g.name)}" data-fallback="${escapeHtml(fallback)}" draggable="false" onerror="this.onerror=null;this.src=this.dataset.fallback">
     </div>`;
   }
-  return `<div class="slot-card empty-slot${selClass}" onclick="clickSlot(${col},'${role}')">
+  return `<div class="slot-card empty-slot${selClass}" ${touchAttrs} onclick="clickSlot(${col},'${role}')">
     <div class="slot-icon">${isSel?'選択中':'武将を選択'}</div>
   </div>`;
 }
