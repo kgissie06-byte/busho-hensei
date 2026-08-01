@@ -130,8 +130,12 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 .slot-card.selected{border:2.5px solid var(--card-selected);background:#dce8f8}
 .slot-card.empty-slot{background:#e8e2d0}
 .slot-card,.slot-card-img{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-user-drag:none}
+.slot-card{transition:border-color 0.15s,opacity 0.15s,transform 0.15s,box-shadow 0.15s}
 .slot-card.dragging{transform:scale(1.08);z-index:5;border-color:#c08030;background:#f5ead0;box-shadow:0 4px 14px rgba(0,0,0,0.28)}
 .slot-card.drag-target{border:2.5px dashed var(--card-selected);background:#dce8f8}
+.slots-grid.drag-mode .slot-card{opacity:0.32}
+.slots-grid.drag-mode .slot-card.dragging,
+.slots-grid.drag-mode .slot-card.drag-target{opacity:1}
 .slot-card-img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
 .slot-icon{font-size:10px;color:#b0a080;text-align:center;line-height:1.5;white-space:pre-line}
 .slot-name{font-size:11px;color:var(--text);font-weight:500;text-align:center;padding:0 2px}
@@ -1551,6 +1555,8 @@ function startDrag(col,role){
   if(!dragState) return;
   dragState.active = true;
   if(navigator.vibrate) navigator.vibrate(15);
+  const grid = document.getElementById('slots-grid');
+  if(grid) grid.classList.add('drag-mode');
   const el = document.querySelector(`.slot-card[data-col="${col}"][data-role="${role}"]`);
   if(el) el.classList.add('dragging');
 }
@@ -1567,6 +1573,8 @@ function updateDragTarget(x,y){
   }
 }
 function finishDrag(){
+  const grid = document.getElementById('slots-grid');
+  if(grid) grid.classList.remove('drag-mode');
   const sourceEl = document.querySelector(`.slot-card[data-col="${dragState.col}"][data-role="${dragState.role}"]`);
   if(sourceEl) sourceEl.classList.remove('dragging');
   if(dragTargetEl){
