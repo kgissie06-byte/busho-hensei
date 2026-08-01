@@ -99,10 +99,27 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 .formation-name-input:focus{outline:none;border-color:var(--blue)}
 
 /* スロットグリッド：狭い時は縮む・広い時は上限で中央寄せ */
+.slots-drag-zone{
+  flex:1 1 0;min-height:0;
+  display:flex;flex-direction:column;
+}
 .slots-grid-wrap{
   flex:1 1 0;min-height:0;
   display:flex;align-items:flex-start;justify-content:flex-start;
   overflow-x:auto;overflow-y:auto;
+}
+.drag-hint{
+  flex-shrink:0;text-align:center;font-size:0;color:var(--text);font-weight:500;
+  padding:0;height:0;overflow:hidden;opacity:0;
+  transition:opacity 0.15s ease;
+}
+.slots-drag-zone.spotlight{
+  position:relative;z-index:401;
+  box-shadow:0 0 0 9999px rgba(60,60,60,0.4);
+  border-radius:10px;
+}
+.slots-drag-zone.spotlight .drag-hint{
+  font-size:12px;height:auto;opacity:1;padding:6px 4px 2px;
 }
 .slots-grid{
   display:flex;gap:6px;
@@ -501,8 +518,11 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 
       <div class="right-panel">
         <div><input class="formation-name-input" type="text" placeholder="編成名"></div>
-        <div class="slots-grid-wrap">
-          <div class="slots-grid" id="slots-grid"></div>
+        <div class="slots-drag-zone" id="slots-drag-zone">
+          <div class="slots-grid-wrap">
+            <div class="slots-grid" id="slots-grid"></div>
+          </div>
+          <div class="drag-hint" id="drag-hint">ドラッグして武将を入れ替えできます</div>
         </div>
         <div class="preview-panel" id="preview-panel">
           <div class="preview-controls">
@@ -1557,6 +1577,8 @@ function startDrag(col,role){
   if(navigator.vibrate) navigator.vibrate(15);
   const grid = document.getElementById('slots-grid');
   if(grid) grid.classList.add('drag-mode');
+  const zone = document.getElementById('slots-drag-zone');
+  if(zone) zone.classList.add('spotlight');
   const el = document.querySelector(`.slot-card[data-col="${col}"][data-role="${role}"]`);
   if(el) el.classList.add('dragging');
 }
@@ -1575,6 +1597,8 @@ function updateDragTarget(x,y){
 function finishDrag(){
   const grid = document.getElementById('slots-grid');
   if(grid) grid.classList.remove('drag-mode');
+  const zone = document.getElementById('slots-drag-zone');
+  if(zone) zone.classList.remove('spotlight');
   const sourceEl = document.querySelector(`.slot-card[data-col="${dragState.col}"][data-role="${dragState.role}"]`);
   if(sourceEl) sourceEl.classList.remove('dragging');
   if(dragTargetEl){
