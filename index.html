@@ -1670,28 +1670,20 @@ function render(){
 }
 
 // ===== 編成のコピー＆貼り付け復元 =====
-const FORMATION_PREFIX = 'SLOT_FORMATION_V1:';
-
-function utf8ToBase64(str){
-  return btoa(unescape(encodeURIComponent(str)));
-}
-function base64ToUtf8(str){
-  return decodeURIComponent(escape(atob(str)));
-}
+// 武将名をそのままJSONに入れる（並び順に依存しないので安全）。
+// base64は使わない：base64は多バイト文字（日本語）を4/3に膨張させるだけで、
+// クリップボードはUnicodeをそのまま扱えるので包む意味が無いため。
+const FORMATION_PREFIX = 'SLOT_FORMATION:';
 
 function serializeFormation(){
   const nameInput = document.querySelector('.formation-name-input');
   const data = {
-    v: 1,
-    name: nameInput ? nameInput.value : '',
-    slots: slots.map(s => ({
-      main: s.main ? s.main.name : null,
-      sub: s.sub ? s.sub.name : null
-    })),
-    timings,
-    policies
+    n: nameInput ? nameInput.value : '',
+    s: slots.map(slot => [slot.main ? slot.main.name : null, slot.sub ? slot.sub.name : null]),
+    t: timings.map(v => v === null ? -1 : v),
+    p: policies.map(v => v === null ? -1 : v)
   };
-  return FORMATION_PREFIX + utf8ToBase64(JSON.stringify(data));
+  return FORMATION_PREFIX + JSON.stringify(data);
 }
 
 async function saveFormation(){
@@ -1715,24 +1707,24 @@ function findGeneralByName(name){
 }
 
 function loadFormation(data){
-  if(!data || !Array.isArray(data.slots)) return;
+  if(!data || !Array.isArray(data.s)) return;
   slots = COLS.map((_, i) => {
-    const s = data.slots[i] || {};
-    return { main: findGeneralByName(s.main), sub: findGeneralByName(s.sub) };
+    const pair = data.s[i] || [null, null];
+    return { main: findGeneralByName(pair[0]), sub: findGeneralByName(pair[1]) };
   });
-  if(Array.isArray(data.timings) && data.timings.length === COLS.length &&
-     data.timings.every(v => v === null || (Number.isInteger(v) && v >= 0 && v < TIMING_OPTS.length))){
-    timings = data.timings;
+  if(Array.isArray(data.t) && data.t.length === COLS.length &&
+     data.t.every(v => v === -1 || (Number.isInteger(v) && v >= 0 && v < TIMING_OPTS.length))){
+    timings = data.t.map(v => v === -1 ? null : v);
   }
-  if(Array.isArray(data.policies) && data.policies.length === COLS.length &&
-     data.policies.every(v => v === null || (Number.isInteger(v) && v >= 0 && v < POLICY_OPTS.length))){
-    policies = data.policies;
+  if(Array.isArray(data.p) && data.p.length === COLS.length &&
+     data.p.every(v => v === -1 || (Number.isInteger(v) && v >= 0 && v < POLICY_OPTS.length))){
+    policies = data.p.map(v => v === -1 ? null : v);
   }
   const nameInput = document.querySelector('.formation-name-input');
   // 編成名も信頼できない値なので、textContent的に扱われるinput.valueへの
   // 代入は安全（HTMLとして解釈されない）だが、念のため文字列型・長さを検証する。
-  if(nameInput && typeof data.name === 'string'){
-    nameInput.value = data.name.slice(0, 100);
+  if(nameInput && typeof data.n === 'string'){
+    nameInput.value = data.n.slice(0, 100);
   }
   selectedSlot = null;
   swapFirst = null;
@@ -1761,8 +1753,7 @@ function restoreFromModal(){
     return;
   }
   try{
-    const json = base64ToUtf8(text.slice(FORMATION_PREFIX.length));
-    const data = JSON.parse(json);
+    const data = JSON.parse(text.slice(FORMATION_PREFIX.length));
     loadFormation(data);
     closeLoadModal();
   }catch(err){
@@ -1782,8 +1773,7 @@ document.addEventListener('paste', (e) => {
     return;
   }
   try{
-    const json = base64ToUtf8(text.slice(FORMATION_PREFIX.length));
-    const data = JSON.parse(json);
+    const data = JSON.parse(text.slice(FORMATION_PREFIX.length));
     loadFormation(data);
   }catch(err){
     console.error(err);
