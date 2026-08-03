@@ -1681,6 +1681,10 @@ function render(){
 // "X" = 未設定(-1)を表す1文字。武将名にこれらの記号が含まれることは無い前提。
 // 編成名(n)だけは自由入力なので encodeURIComponent で保護する。
 const FORMATION_PREFIX = 'SF:';
+// 極端に長い文字列（; を大量連結する等）が貼り付けられた際にsplit処理が
+// 無駄に重くなるのを防ぐための入力長上限。通常の編成データは長くても
+// 数百文字程度に収まるため、十分すぎる余裕を持たせている。
+const FORMATION_MAX_LENGTH = 2000;
 
 function packFormation(data){
   const enc  = v => v == null ? '' : String(v);
@@ -1782,6 +1786,10 @@ function restoreFromModal(){
     alert(`編成データの形式が正しくありません。「${FORMATION_PREFIX}」から始まる文字列を貼り付けてください。`);
     return;
   }
+  if(text.length > FORMATION_MAX_LENGTH){
+    alert('編成データが長すぎます。正しい編成データか確認してください。');
+    return;
+  }
   try{
     const data = unpackFormation(text.slice(FORMATION_PREFIX.length));
     loadFormation(data);
@@ -1797,6 +1805,10 @@ document.addEventListener('paste', (e) => {
   const text = (e.clipboardData || window.clipboardData) ? (e.clipboardData || window.clipboardData).getData('text') : '';
   if(!text || !text.startsWith(FORMATION_PREFIX)) return; // 通常のペーストは邪魔しない
   e.preventDefault();
+  if(text.length > FORMATION_MAX_LENGTH){
+    alert('編成データが長すぎます。正しい編成データか確認してください。');
+    return;
+  }
   // 悪意あるサイト等に誘導され、細工した編成データを気づかず貼り付けさせられる
   // 「ペーストジャッキング」対策として、実際に反映する前に必ず確認を挟む。
   if(!confirm('クリップボードの内容を編成データとして読み込みます。よろしいですか？\n（心当たりのない場所からコピーした文字列の場合はキャンセルしてください）')){
