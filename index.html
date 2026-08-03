@@ -482,13 +482,128 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 .enemy-modal-btn.primary:hover{background:#3a6a20}
 .enemy-modal-btn.secondary{background:var(--card);color:var(--text)}
 .enemy-modal-btn.secondary:hover{background:var(--card-hover)}
+
+/* ==== 認証関連オーバーレイ（ログイン・端末登録確認・承認待ち） ==== */
+.auth-overlay{
+  position:fixed;inset:0;z-index:1000;
+  background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  padding:20px;overflow-y:auto;
+}
+.auth-box{
+  width:100%;max-width:360px;
+  background:var(--card);border:1px solid var(--card-border);
+  border-radius:8px;padding:24px;
+  display:flex;flex-direction:column;gap:14px;
+}
+.auth-title{font-size:16px;font-weight:700;color:var(--text);text-align:center}
+.auth-field{display:flex;flex-direction:column;gap:4px}
+.auth-field label{font-size:12px;color:var(--text-muted)}
+.auth-field input{
+  padding:9px 10px;font-size:14px;
+  border:1px solid var(--card-border);background:#f8f4ea;
+  border-radius:4px;color:var(--text);
+}
+.auth-field input:focus{outline:none;border-color:var(--blue)}
+.auth-btn{
+  padding:10px;background:#4a7a30;color:#fff;border:none;border-radius:4px;
+  font-size:14px;font-weight:600;cursor:pointer;
+}
+.auth-btn:hover{background:#3a6a20}
+.auth-btn:disabled{background:#999;cursor:default}
+.auth-error{font-size:12px;color:#aa3311;text-align:center;min-height:14px}
+.auth-note{font-size:12px;color:var(--text-muted);line-height:1.7}
+.auth-code-box{
+  background:#f8f4ea;border:1px solid var(--card-border);border-radius:4px;
+  padding:10px;font-size:12px;color:var(--text);word-break:break-all;
+}
+.auth-code-row{display:flex;justify-content:space-between;gap:8px;padding:2px 0}
+.auth-code-row span:first-child{color:var(--text-muted);flex-shrink:0}
+.auth-spinner{
+  width:24px;height:24px;border-radius:50%;
+  border:3px solid var(--card-border);border-top-color:var(--blue);
+  margin:0 auto;animation:auth-spin 0.8s linear infinite;
+}
+@keyframes auth-spin{to{transform:rotate(360deg)}}
+
+/* 端末情報タブ（管理者専用） */
+.devices-wrap{padding:16px;overflow-y:auto;height:100%}
+.devices-table{width:100%;border-collapse:collapse;font-size:12px}
+.devices-table th,.devices-table td{
+  padding:7px 8px;border-bottom:1px solid var(--card-border);text-align:left;
+  white-space:nowrap;
+}
+.devices-table th{background:var(--panel);color:var(--text);position:sticky;top:0}
+.device-status-badge{
+  display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;
+}
+.device-status-badge.pending{background:#f0e0a0;color:#7a5a00}
+.device-status-badge.approved{background:var(--green-bg);color:var(--green)}
+.device-status-badge.revoked{background:#e8c8c8;color:#aa3311}
+.device-action-btn{
+  padding:4px 10px;border:none;border-radius:4px;font-size:11px;cursor:pointer;color:#fff;margin-right:4px;
+}
+.device-action-btn.approve{background:#2a8040}
+.device-action-btn.approve:hover{background:#1f6a30}
+.device-action-btn.revoke{background:#aa3311}
+.device-action-btn.revoke:hover{background:#8a2a0d}
+.devices-refresh-btn{
+  padding:6px 14px;background:var(--panel);border:1px solid var(--card-border);
+  border-radius:4px;font-size:12px;cursor:pointer;color:var(--text);margin-bottom:10px;
+}
 </style>
 </head>
 <body>
-<div class="app">
+
+<!-- ログイン画面 -->
+<div class="auth-overlay" id="login-screen">
+  <div class="auth-box">
+    <div class="auth-title">討伐シミュレーター ログイン</div>
+    <div class="auth-field">
+      <label for="login-member-id">ID</label>
+      <input type="number" id="login-member-id" inputmode="numeric" autocomplete="username">
+    </div>
+    <div class="auth-field">
+      <label for="login-password">パスワード</label>
+      <input type="password" id="login-password" autocomplete="current-password">
+    </div>
+    <div class="auth-error" id="login-error"></div>
+    <button class="auth-btn" id="login-submit-btn" onclick="doLogin()">ログイン</button>
+  </div>
+</div>
+
+<!-- 端末登録直後の確認画面（スクショしてDiscordで送る用） -->
+<div class="auth-overlay" id="device-confirm-screen" style="display:none">
+  <div class="auth-box">
+    <div class="auth-title">端末登録の確認</div>
+    <div class="auth-note">
+      この端末は初めてのログインのため、利用開始には管理者の承認が必要です。<br>
+      下の内容を<b>スクリーンショットして、Discordで管理者宛に送信</b>してください。
+    </div>
+    <div class="auth-code-box" id="device-confirm-box"></div>
+    <div class="auth-note">送信後、下のボタンを押して承認をお待ちください。承認されると自動的に利用できるようになります。</div>
+    <button class="auth-btn" onclick="showWaitingScreen()">送信しました（承認を待つ）</button>
+  </div>
+</div>
+
+<!-- 承認待ち画面 -->
+<div class="auth-overlay" id="waiting-screen" style="display:none">
+  <div class="auth-box">
+    <div class="auth-title">承認待ち</div>
+    <div class="auth-spinner"></div>
+    <div class="auth-note" style="text-align:center">
+      管理者の承認をお待ちください。<br>承認されると自動的に画面が切り替わります。
+    </div>
+    <div class="auth-error" id="waiting-error"></div>
+    <button class="auth-btn" onclick="checkDeviceStatus()">今すぐ確認する</button>
+  </div>
+</div>
+
+<div class="app" id="main-app" style="display:none">
   <div class="tabs">
-    <button class="tab active" onclick="switchTab('edit')">編成</button>
-    <button class="tab" onclick="switchTab('point')">ポイント効率</button>
+    <button class="tab active" data-tab="edit" onclick="switchTab('edit')">編成</button>
+    <button class="tab" data-tab="point" onclick="switchTab('point')">ポイント効率</button>
+    <button class="tab" data-tab="devices" id="tab-btn-devices" style="display:none" onclick="switchTab('devices')">端末情報</button>
   </div>
 
   <div id="tab-edit" style="display:flex;flex-direction:column;flex:1;min-height:0">
@@ -585,6 +700,27 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
         </div>
         <div class="point-side" id="point-side"></div>
       </div>
+    </div>
+  </div>
+
+  <div id="tab-devices" style="display:none;flex:1;min-height:0">
+    <div class="devices-wrap">
+      <button class="devices-refresh-btn" onclick="loadDevicesList()">更新</button>
+      <div class="auth-error" id="devices-error"></div>
+      <table class="devices-table">
+        <thead>
+          <tr>
+            <th>メンバー</th>
+            <th>状態</th>
+            <th>発行日時</th>
+            <th>有効期限</th>
+            <th>最終アクセス</th>
+            <th>端末情報</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="devices-table-body"></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -701,9 +837,11 @@ let filteredList = [...GENERALS];
 function switchTab(t){
   document.getElementById('tab-edit').style.display = t==='edit' ? 'flex' : 'none';
   document.getElementById('tab-point').style.display = t==='point' ? 'flex' : 'none';
-  document.querySelectorAll('.tab').forEach((el,i)=>
-    el.classList.toggle('active',(t==='edit'&&i===0)||(t==='point'&&i===1))
+  document.getElementById('tab-devices').style.display = t==='devices' ? 'flex' : 'none';
+  document.querySelectorAll('.tab').forEach(el=>
+    el.classList.toggle('active', el.dataset.tab === t)
   );
+  if(t==='devices') loadDevicesList();
 }
 
 let POINT_DATA = {};
@@ -1835,7 +1973,249 @@ document.addEventListener('paste', (e) => {
   }
 });
 
-async function init(){
+// ===================================================================
+// 認証・端末認証（ログイン / 端末登録 / 端末検証 / 管理者用端末情報）
+// ===================================================================
+const DEVICE_ID_STORAGE_KEY = 'toubatsu_device_id';
+let CURRENT_MEMBER_ID = null;
+let CURRENT_MEMBER_ROLE = null;
+let waitingPollTimer = null;
+
+// screenId: 'login-screen' | 'device-confirm-screen' | 'waiting-screen' | null（null=本編アプリを表示）
+function showOnly(screenId){
+  ['login-screen','device-confirm-screen','waiting-screen'].forEach(id=>{
+    document.getElementById(id).style.display = (id===screenId) ? 'flex' : 'none';
+  });
+  document.getElementById('main-app').style.display = screenId ? 'none' : 'flex';
+}
+
+function formatDateTime(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return iso;
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function clearWaitingPoll(){
+  if(waitingPollTimer){ clearInterval(waitingPollTimer); waitingPollTimer = null; }
+}
+
+function showLoginScreen(message){
+  clearWaitingPoll();
+  document.getElementById('login-error').textContent = message || '';
+  document.getElementById('login-password').value = '';
+  showOnly('login-screen');
+}
+
+function showDeviceConfirmScreen(device){
+  const box = document.getElementById('device-confirm-box');
+  box.innerHTML = `
+    <div class="auth-code-row"><span>ID</span><span>${escapeHtml(String(device.memberId))}</span></div>
+    <div class="auth-code-row"><span>名前</span><span>${escapeHtml(device.memberName || '')}</span></div>
+    <div class="auth-code-row"><span>発行時刻</span><span>${escapeHtml(formatDateTime(device.issuedAt))}</span></div>
+    <div class="auth-code-row"><span>端末ID</span><span>${escapeHtml(device.deviceId)}</span></div>
+  `;
+  showOnly('device-confirm-screen');
+}
+
+function showWaitingScreen(){
+  showOnly('waiting-screen');
+  document.getElementById('waiting-error').textContent = '';
+  checkDeviceStatus();
+  clearWaitingPoll();
+  waitingPollTimer = setInterval(checkDeviceStatus, 8000);
+}
+
+async function showApp(memberId, role){
+  clearWaitingPoll();
+  CURRENT_MEMBER_ID = memberId;
+  CURRENT_MEMBER_ROLE = role;
+  document.getElementById('tab-btn-devices').style.display = (memberId === 1) ? '' : 'none';
+  showOnly(null);
+  await startApp();
+}
+
+async function doLogin(){
+  const memberIdInput = document.getElementById('login-member-id');
+  const passwordInput = document.getElementById('login-password');
+  const errEl = document.getElementById('login-error');
+  const btn = document.getElementById('login-submit-btn');
+
+  const memberId = memberIdInput.value.trim();
+  const password = passwordInput.value;
+  errEl.textContent = '';
+
+  if(!memberId || !password){
+    errEl.textContent = 'IDとパスワードを入力してください';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'ログイン中...';
+  try{
+    const res = await fetch('/api/login', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ memberId, password }),
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok || !data.ok){
+      errEl.textContent = data.error || 'ログインに失敗しました';
+      return;
+    }
+    // ログイン成功（セッションCookie発行済み）→ この端末を登録する
+    await registerThisDevice();
+  }catch(e){
+    console.error(e);
+    errEl.textContent = '通信エラーが発生しました';
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'ログイン';
+  }
+}
+
+async function registerThisDevice(){
+  try{
+    const res = await fetch('/api/device/register', { method:'POST' });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok || !data.ok){
+      showLoginScreen(data.error || '端末の登録に失敗しました');
+      return;
+    }
+    localStorage.setItem(DEVICE_ID_STORAGE_KEY, data.deviceId);
+    showDeviceConfirmScreen(data);
+  }catch(e){
+    console.error(e);
+    showLoginScreen('通信エラーが発生しました');
+  }
+}
+
+async function checkDeviceStatus(){
+  const deviceId = localStorage.getItem(DEVICE_ID_STORAGE_KEY);
+  if(!deviceId){
+    showLoginScreen();
+    return;
+  }
+  try{
+    const res = await fetch('/api/device/verify', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ deviceId }),
+    });
+    const data = await res.json().catch(()=>({}));
+    if(res.ok && data.ok){
+      showApp(data.memberId, data.role);
+      return;
+    }
+    if(data.reason === 'pending'){
+      // まだ承認待ち。待機画面のまま（ポーリングを継続）
+      if(document.getElementById('waiting-screen').style.display === 'none'){
+        showOnly('waiting-screen');
+      }
+      return;
+    }
+    // pending以外の拒否理由（revoked/expired/member_disabled/account_deleted/not_found）
+    // → 保存されている端末IDを破棄し、ログイン画面に戻す
+    localStorage.removeItem(DEVICE_ID_STORAGE_KEY);
+    showLoginScreen(data.error || '再度ログインしてください');
+  }catch(e){
+    console.error(e);
+    const waitErrEl = document.getElementById('waiting-error');
+    if(waitErrEl) waitErrEl.textContent = '通信エラーが発生しました。しばらくすると自動的に再試行します。';
+  }
+}
+
+document.getElementById('login-member-id').addEventListener('keydown', e => { if(e.key === 'Enter') doLogin(); });
+document.getElementById('login-password').addEventListener('keydown', e => { if(e.key === 'Enter') doLogin(); });
+
+// ===================================================================
+// 端末情報タブ（member_id=1 専用：一覧取得・承認・無効化）
+// ===================================================================
+async function loadDevicesList(){
+  const tbody = document.getElementById('devices-table-body');
+  const errEl = document.getElementById('devices-error');
+  errEl.textContent = '';
+  tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">読み込み中...</td></tr>`;
+  try{
+    const res = await fetch('/api/device/admin');
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok || !data.ok){
+      errEl.textContent = data.error || '端末一覧の取得に失敗しました';
+      tbody.innerHTML = '';
+      return;
+    }
+    renderDevicesList(data.devices);
+  }catch(e){
+    console.error(e);
+    errEl.textContent = '通信エラーが発生しました';
+    tbody.innerHTML = '';
+  }
+}
+
+function renderDevicesList(devices){
+  const tbody = document.getElementById('devices-table-body');
+  if(!devices || devices.length === 0){
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">端末情報がありません</td></tr>`;
+    return;
+  }
+  const statusLabel = { pending:'承認待ち', approved:'承認済み', revoked:'無効化済み' };
+  tbody.innerHTML = devices.map(d => {
+    const name = escapeHtml(d.memberName || `ID:${d.memberId}`);
+    const badge = `<span class="device-status-badge ${d.status}">${statusLabel[d.status] || d.status}</span>`;
+    const ua = d.userAgent ? escapeHtml(d.userAgent) : '-';
+    let actions = '';
+    if(d.status !== 'approved'){
+      actions += `<button class="device-action-btn approve" onclick="approveDevice('${d.id}')">承認</button>`;
+    }
+    if(d.status !== 'revoked'){
+      actions += `<button class="device-action-btn revoke" onclick="revokeDevice('${d.id}')">無効化</button>`;
+    }
+    return `<tr>
+      <td>${name}（ID:${escapeHtml(String(d.memberId))}）</td>
+      <td>${badge}</td>
+      <td>${formatDateTime(d.issuedAt)}</td>
+      <td>${formatDateTime(d.expiresAt)}</td>
+      <td>${d.lastSeenAt ? formatDateTime(d.lastSeenAt) : '-'}</td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis">${ua}</td>
+      <td>${actions}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function approveDevice(deviceId){
+  await runDeviceAction(deviceId, 'approve');
+}
+async function revokeDevice(deviceId){
+  if(!confirm('この端末を無効化します。よろしいですか？')) return;
+  await runDeviceAction(deviceId, 'revoke');
+}
+
+async function runDeviceAction(deviceId, action){
+  const errEl = document.getElementById('devices-error');
+  errEl.textContent = '';
+  try{
+    const res = await fetch('/api/device/admin', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ deviceId, action }),
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok || !data.ok){
+      errEl.textContent = data.error || '操作に失敗しました';
+      return;
+    }
+    loadDevicesList();
+  }catch(e){
+    console.error(e);
+    errEl.textContent = '通信エラーが発生しました';
+  }
+}
+
+// ===================================================================
+// 本編アプリの初期化（認証通過後に呼ばれる）
+// ===================================================================
+async function startApp(){
   renderList(); // "読み込み中..." 表示
   render();
   try{
@@ -1850,7 +2230,17 @@ async function init(){
       `<div style="padding:10px;font-size:12px;color:#aa3311">読み込みに失敗しました。<br>${escapeHtml(e.message)}</div>`;
   }
 }
-init();
+
+// ページ読み込み時：保存済みの端末IDがあれば検証（あれば実質のログインになる）。
+// 無ければログイン画面を表示する。
+(function bootstrapAuth(){
+  const deviceId = localStorage.getItem(DEVICE_ID_STORAGE_KEY);
+  if(deviceId){
+    checkDeviceStatus();
+  }else{
+    showLoginScreen();
+  }
+})();
 </script>
 </body>
 </html>
