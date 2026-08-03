@@ -1670,10 +1670,40 @@ function render(){
 }
 
 // ===== 編成のコピー＆貼り付け復元 =====
-// 武将名をそのままJSONに入れる（並び順に依存しないので安全）。
+// 武将名をそのまま入れる（並び順に依存しないので安全）。
 // base64は使わない：base64は多バイト文字（日本語）を4/3に膨張させるだけで、
 // クリップボードはUnicodeをそのまま扱えるので包む意味が無いため。
-const FORMATION_PREFIX = 'SLOT_FORMATION:';
+// JSONも使わない：クォート・ブラケット・キー名などの記法自体がオーバーヘッドで、
+// 武将名は元々短い漢字なので、区切り文字だけの独自フォーマットの方がかなり短くなる。
+//   例）{"n":"","s":[["亜光","玄峰"],...],"t":[2,0,...],"p":[0,2,...]} (155文字)
+//     → 亜光/玄峰;亜門/向;...|20102X0|02234X1                        (56文字, 約64%減)
+// 区切り文字： "|" = n/s/t/p の区切り、";" = 列の区切り、"/" = main/subの区切り、
+// "X" = 未設定(-1)を表す1文字。武将名にこれらの記号が含まれることは無い前提。
+// 編成名(n)だけは自由入力なので encodeURIComponent で保護する。
+const FORMATION_PREFIX = 'SF:';
+
+function packFormation(data){
+  const enc  = v => v == null ? '' : String(v);
+  const encT = v => v === -1 ? 'X' : String(v);
+  const nPart = encodeURIComponent(data.n || '');
+  const sPart = data.s.map(([m, sub]) => enc(m) + '/' + enc(sub)).join(';');
+  const tPart = data.t.map(encT).join('');
+  const pPart = data.p.map(encT).join('');
+  return [nPart, sPart, tPart, pPart].join('|');
+}
+
+function unpackFormation(packed){
+  const [nPart, sPart, tPart, pPart] = packed.split('|');
+  const n = decodeURIComponent(nPart || '');
+  const s = (sPart || '').split(';').map(pair => {
+    const [m, sub] = pair.split('/');
+    return [m || null, sub || null];
+  });
+  const toNum = c => c === 'X' ? -1 : Number(c);
+  const t = (tPart || '').split('').map(toNum);
+  const p = (pPart || '').split('').map(toNum);
+  return { n, s, t, p };
+}
 
 function serializeFormation(){
   const nameInput = document.querySelector('.formation-name-input');
@@ -1683,7 +1713,7 @@ function serializeFormation(){
     t: timings.map(v => v === null ? -1 : v),
     p: policies.map(v => v === null ? -1 : v)
   };
-  return FORMATION_PREFIX + JSON.stringify(data);
+  return FORMATION_PREFIX + packFormation(data);
 }
 
 async function saveFormation(){
@@ -1753,7 +1783,7 @@ function restoreFromModal(){
     return;
   }
   try{
-    const data = JSON.parse(text.slice(FORMATION_PREFIX.length));
+    const data = unpackFormation(text.slice(FORMATION_PREFIX.length));
     loadFormation(data);
     closeLoadModal();
   }catch(err){
@@ -1773,7 +1803,7 @@ document.addEventListener('paste', (e) => {
     return;
   }
   try{
-    const data = JSON.parse(text.slice(FORMATION_PREFIX.length));
+    const data = unpackFormation(text.slice(FORMATION_PREFIX.length));
     loadFormation(data);
   }catch(err){
     console.error(err);
