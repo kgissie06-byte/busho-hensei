@@ -56,7 +56,7 @@ module.exports = async (req, res) => {
       const { data, error } = await supabase
         .from('devices')
         .select(
-          'id, member_id, status, issued_at, expires_at, approved_at, approved_by, last_seen_at, user_agent, members(name)'
+          'id, member_id, status, issued_at, expires_at, approved_at, approved_by, last_seen_at, user_agent, members!devices_member_id_fkey(name)'
         )
         .order('status', { ascending: true }) // pending が先頭に来やすいよう文字列順（pending<approved<revoked）
         .order('issued_at', { ascending: false })
