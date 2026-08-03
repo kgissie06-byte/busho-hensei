@@ -10,9 +10,13 @@
 //
 // POST /api/device/admin
 //   body: { deviceId: uuid, action: 'approve' | 'revoke' }
-//   → 指定端末を承認(approved)または無効化(revoked)にする
-//     承認時は approved_at・approved_by（実行した管理者のmember_id）を記録し、
+//   → action='approve': 指定端末を承認(approved)にする。
+//     approved_at・approved_by（実行した管理者のmember_id）を記録し、
 //     expires_atを now()+30日 にリセットする（sliding windowの起点をここから始める）
+//   → action='revoke': 指定端末のレコードをdevicesテーブルから完全に削除する
+//     （statusを'revoked'にするのではなく行自体を消す。一覧・DBから消したい、
+//      という要件のため。削除された端末でverifyを叩いた場合はnot_foundとして
+//      扱われ、フロント側は保存済みdeviceIdを破棄してログイン画面に戻る）
 //
 // [モジュール形式] chars.js / login.js と同じ CommonJS
 
@@ -116,18 +120,35 @@ module.exports = async (req, res) => {
       return
     }
 
-    const updatePayload =
-      action === 'approve'
-        ? {
-            status: 'approved',
-            approved_at: new Date().toISOString(),
-            approved_by: auth.memberId,
-            // 承認したタイミングを sliding window の起点とする
-            expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          }
-        : {
-            status: 'revoked',
-          }
+    // revoke（無効化）の場合は、statusを立てるのではなく行自体をDBから削除する。
+    // これにより一覧（GET）にも二度と出てこなくなる。
+    // 参考: verify.jsは行が存在しなければ status==='revoked' 判定より先に
+    //       「not_found（端末情報が見つかりません）」で弾かれるため、
+    //       挙動としては引き続き安全（保存済みdeviceIdは破棄されログイン画面に戻る）。
+    if (action === 'revoke') {
+      const { error: deleteErr } = await supabase
+        .from('devices')
+        .delete()
+        .eq('id', deviceId)
+
+      if (deleteErr) {
+        console.error('devices削除エラー:', deleteErr)
+        res.status(500).json({ error: '削除に失敗しました' })
+        return
+      }
+
+      res.status(200).json({ ok: true, deleted: true, deviceId })
+      return
+    }
+
+    // ---- approve（承認） ----
+    const updatePayload = {
+      status: 'approved',
+      approved_at: new Date().toISOString(),
+      approved_by: auth.memberId,
+      // 承認したタイミングを sliding window の起点とする
+      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    }
 
     const { data: updated, error: updateErr } = await supabase
       .from('devices')

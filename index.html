@@ -558,7 +558,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 <!-- ログイン画面 -->
 <div class="auth-overlay" id="login-screen">
   <div class="auth-box">
-    <div class="auth-title">討伐シミュレーター ログイン</div>
+    <div class="auth-title">ログイン</div>
     <div class="auth-field">
       <label for="login-member-id">ID</label>
       <input type="number" id="login-member-id" inputmode="numeric" autocomplete="username">
@@ -2187,7 +2187,7 @@ async function approveDevice(deviceId){
   await runDeviceAction(deviceId, 'approve');
 }
 async function revokeDevice(deviceId){
-  if(!confirm('この端末を無効化します。よろしいですか？')) return;
+  if(!confirm('この端末を無効化します（端末情報はDBから完全に削除されます）。よろしいですか？')) return;
   await runDeviceAction(deviceId, 'revoke');
 }
 
