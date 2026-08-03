@@ -499,7 +499,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
           <button class="sheet-close" onclick="closeSheet()">✕</button>
         </div>
         <input class="search-box" type="text" placeholder="武将名を入力" id="search-input"
-          oninput="filterList()" onkeydown="handleSearchKeydown(event)">
+          oninput="filterList()">
         <div class="general-list" id="general-list"></div>
         <button class="confirm-btn" onclick="confirmSelection()">確定</button>
         <button class="swap-btn" onclick="toggleSwap()">入替 <span id="swap-status">OFF</span></button>
@@ -1207,6 +1207,18 @@ function handleSearchKeydown(e){
     confirmSelection();
   }
 }
+// スロットが選択されている（＝武将選択シートが開いている）間は、検索欄に
+// フォーカスが無くてもTab（候補送り）とEnter（確定）を使えるようにする。
+// ただし他の入力欄（編成名・貼り付けモーダル・プレビューのセレクト等）に
+// フォーカスがある場合は、そちらの本来の挙動を優先してTab/Enterを奪わない。
+document.addEventListener('keydown', (e) => {
+  if(!selectedSlot) return;
+  if(e.key !== 'Tab' && e.key !== 'Enter') return;
+  const tag = e.target && e.target.tagName;
+  if(tag === 'TEXTAREA' || tag === 'SELECT') return;
+  if(tag === 'INPUT' && e.target.id !== 'search-input') return;
+  handleSearchKeydown(e);
+});
 function renderList(){
   const list = document.getElementById('general-list');
   if(GENERALS.length === 0){
