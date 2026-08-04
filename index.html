@@ -581,21 +581,16 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
       下の内容を<b>スクリーンショットして、Discordで管理者宛に送信</b>してください。
     </div>
     <div class="auth-code-box" id="device-confirm-box"></div>
-    <div class="auth-note">送信後、下のボタンを押して承認をお待ちください。承認されると自動的に利用できるようになります。</div>
-    <button class="auth-btn" onclick="showWaitingScreen()">送信しました（承認を待つ）</button>
+    <div class="auth-note">送信後、下のボタンを押してログイン画面に戻ってください。管理者が承認すると、次回このアプリを開いたとき（またはログインし直したとき）に自動的に利用できるようになります。</div>
+    <button class="auth-btn" onclick="backToLoginAfterRegister()">送信しました（ログイン画面へ戻る）</button>
   </div>
 </div>
 
-<!-- 承認待ち画面 -->
-<div class="auth-overlay" id="waiting-screen" style="display:none">
+<!-- 端末認証チェック中のロード画面（初回アクセス時・保存済み端末IDの検証中に表示） -->
+<div class="auth-overlay" id="loading-screen" style="display:none">
   <div class="auth-box">
-    <div class="auth-title">承認待ち</div>
     <div class="auth-spinner"></div>
-    <div class="auth-note" style="text-align:center">
-      管理者の承認をお待ちください。<br>承認されると自動的に画面が切り替わります。
-    </div>
-    <div class="auth-error" id="waiting-error"></div>
-    <button class="auth-btn" onclick="checkDeviceStatus()">今すぐ確認する</button>
+    <div class="auth-note" style="text-align:center">確認中です。しばらくお待ちください…</div>
   </div>
 </div>
 
@@ -1979,11 +1974,10 @@ document.addEventListener('paste', (e) => {
 const DEVICE_ID_STORAGE_KEY = 'toubatsu_device_id';
 let CURRENT_MEMBER_ID = null;
 let CURRENT_MEMBER_ROLE = null;
-let waitingPollTimer = null;
 
-// screenId: 'login-screen' | 'device-confirm-screen' | 'waiting-screen' | null（null=本編アプリを表示）
+// screenId: 'login-screen' | 'device-confirm-screen' | 'loading-screen' | null（null=本編アプリを表示）
 function showOnly(screenId){
-  ['login-screen','device-confirm-screen','waiting-screen'].forEach(id=>{
+  ['login-screen','device-confirm-screen','loading-screen'].forEach(id=>{
     document.getElementById(id).style.display = (id===screenId) ? 'flex' : 'none';
   });
   document.getElementById('main-app').style.display = screenId ? 'none' : 'flex';
@@ -1997,12 +1991,7 @@ function formatDateTime(iso){
   return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function clearWaitingPoll(){
-  if(waitingPollTimer){ clearInterval(waitingPollTimer); waitingPollTimer = null; }
-}
-
 function showLoginScreen(message){
-  clearWaitingPoll();
   document.getElementById('login-error').textContent = message || '';
   document.getElementById('login-password').value = '';
   showOnly('login-screen');
@@ -2019,16 +2008,15 @@ function showDeviceConfirmScreen(device){
   showOnly('device-confirm-screen');
 }
 
-function showWaitingScreen(){
-  showOnly('waiting-screen');
-  document.getElementById('waiting-error').textContent = '';
-  checkDeviceStatus();
-  clearWaitingPoll();
-  waitingPollTimer = setInterval(checkDeviceStatus, 8000);
+// 端末登録の確認画面で「送信しました」を押した時の遷移。
+// 端末IDはlocalStorageに残したまま（＝承認され次第、次回アクセス時の
+// ロード画面での自動チェックでそのままアプリに入れるようにする）、
+// ログイン画面に戻すだけでよい（ポーリングでの自動承認待ちはしない）。
+function backToLoginAfterRegister(){
+  showLoginScreen('送信済みです。管理者の承認をお待ちください。承認後、再度ログインするか、このページを開き直してください。');
 }
 
 async function showApp(memberId, role){
-  clearWaitingPoll();
   CURRENT_MEMBER_ID = memberId;
   CURRENT_MEMBER_ROLE = role;
   document.getElementById('tab-btn-devices').style.display = (memberId === 1) ? '' : 'none';
@@ -2091,12 +2079,19 @@ async function registerThisDevice(){
   }
 }
 
+// 保存済みの端末IDを検証する。結果は以下の2パターンのみ：
+//   ・承認済み（ok）        → そのまま編成画面（本編アプリ）に遷移
+//   ・それ以外（未承認等） → ログイン画面に戻す（理由メッセージ表示）
+// チェック中はロード画面を表示する。
 async function checkDeviceStatus(){
   const deviceId = localStorage.getItem(DEVICE_ID_STORAGE_KEY);
   if(!deviceId){
     showLoginScreen();
     return;
   }
+
+  showOnly('loading-screen');
+
   try{
     const res = await fetch('/api/device/verify', {
       method:'POST',
@@ -2109,10 +2104,9 @@ async function checkDeviceStatus(){
       return;
     }
     if(data.reason === 'pending'){
-      // まだ承認待ち。待機画面のまま（ポーリングを継続）
-      if(document.getElementById('waiting-screen').style.display === 'none'){
-        showOnly('waiting-screen');
-      }
+      // まだ承認待ち。端末IDは破棄せず残しておき（承認され次第、次回アクセス時に
+      // このチェックが自動で通るようにする）、ログイン画面に理由を表示するだけにする。
+      showLoginScreen(data.error || '端末が承認待ちです。管理者の承認をお待ちください');
       return;
     }
     // pending以外の拒否理由（revoked/expired/member_disabled/account_deleted/not_found）
@@ -2121,8 +2115,8 @@ async function checkDeviceStatus(){
     showLoginScreen(data.error || '再度ログインしてください');
   }catch(e){
     console.error(e);
-    const waitErrEl = document.getElementById('waiting-error');
-    if(waitErrEl) waitErrEl.textContent = '通信エラーが発生しました。しばらくすると自動的に再試行します。';
+    // 通信エラーの場合は端末IDを破棄せず、ログイン画面に戻して手動で再試行できるようにする
+    showLoginScreen('通信エラーが発生しました。しばらくしてから再度お試しください');
   }
 }
 
@@ -2231,11 +2225,13 @@ async function startApp(){
   }
 }
 
-// ページ読み込み時：保存済みの端末IDがあれば検証（あれば実質のログインになる）。
-// 無ければログイン画面を表示する。
+// ページ読み込み時：保存済みの端末IDがあれば検証する（あれば実質のログインになる）。
+// 検証中はロード画面を表示し、結果に応じて編成画面 or ログイン画面へ遷移する。
+// 端末IDが無ければ、チェックするまでもなくログイン画面を表示する。
 (function bootstrapAuth(){
   const deviceId = localStorage.getItem(DEVICE_ID_STORAGE_KEY);
   if(deviceId){
+    showOnly('loading-screen');
     checkDeviceStatus();
   }else{
     showLoginScreen();

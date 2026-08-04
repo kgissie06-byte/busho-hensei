@@ -1,0 +1,14 @@
+# 依存パッケージ(npm installで再生成できるので上げない)
+node_modules/
+
+# 環境変数(JWT_SECRET, SUPABASE_SERVICE_ROLE_KEYなど機密情報)
+.env
+.env.local
+.env.*.local
+
+# Vercelのローカル設定・キャッシュ
+.vercel
+
+# OS/エディタ系のゴミファイル
+.DS_Store
+*.log
