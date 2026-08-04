@@ -1999,11 +1999,15 @@ function showLoginScreen(message){
 
 function showDeviceConfirmScreen(device){
   const box = document.getElementById('device-confirm-box');
+  // 注意：device.deviceId（端末認証用UUID）はここには表示しない。
+  // このUUIDは端末認証の鍵（≒パスワード相当）であり、知っていれば誰でも
+  // そのメンバーとしてログインできてしまうため、スクショ等で不特定多数の目に
+  // 触れる可能性がある画面には出さない。管理者は「端末情報」タブの一覧
+  // （名前・ID・発行時刻で照合可能）から承認できるので、UUID自体は不要。
   box.innerHTML = `
     <div class="auth-code-row"><span>ID</span><span>${escapeHtml(String(device.memberId))}</span></div>
     <div class="auth-code-row"><span>名前</span><span>${escapeHtml(device.memberName || '')}</span></div>
     <div class="auth-code-row"><span>発行時刻</span><span>${escapeHtml(formatDateTime(device.issuedAt))}</span></div>
-    <div class="auth-code-row"><span>端末ID</span><span>${escapeHtml(device.deviceId)}</span></div>
   `;
   showOnly('device-confirm-screen');
 }
