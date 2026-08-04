@@ -581,8 +581,20 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
       下の内容を<b>スクリーンショットして、Discordで管理者宛に送信</b>してください。
     </div>
     <div class="auth-code-box" id="device-confirm-box"></div>
-    <div class="auth-note">送信後、下のボタンを押してログイン画面に戻ってください。管理者が承認すると、次回このアプリを開いたとき（またはログインし直したとき）に自動的に利用できるようになります。</div>
-    <button class="auth-btn" onclick="backToLoginAfterRegister()">送信しました（ログイン画面へ戻る）</button>
+    <div class="auth-note">送信後、下のボタンを押してください。管理者が承認すると、次回このアプリを開いたときに自動的に利用できるようになります。</div>
+    <button class="auth-btn" onclick="showPendingScreen()">送信しました</button>
+  </div>
+</div>
+
+<!-- 承認待ち画面（ログインフォームは出さない。再ログインが必要だと誤解させないため） -->
+<div class="auth-overlay" id="pending-screen" style="display:none">
+  <div class="auth-box">
+    <div class="auth-title">承認待ち</div>
+    <div class="auth-note" id="pending-note" style="text-align:center">
+      管理者の承認をお待ちください。<br>
+      ログインし直す必要はありません。承認され次第、このページを開き直すと自動的に利用できるようになります。
+    </div>
+    <button class="auth-btn" onclick="checkDeviceStatus()">今すぐ確認する</button>
   </div>
 </div>
 
@@ -1975,9 +1987,9 @@ const DEVICE_ID_STORAGE_KEY = 'toubatsu_device_id';
 let CURRENT_MEMBER_ID = null;
 let CURRENT_MEMBER_ROLE = null;
 
-// screenId: 'login-screen' | 'device-confirm-screen' | 'loading-screen' | null（null=本編アプリを表示）
+// screenId: 'login-screen' | 'device-confirm-screen' | 'pending-screen' | 'loading-screen' | null（null=本編アプリを表示）
 function showOnly(screenId){
-  ['login-screen','device-confirm-screen','loading-screen'].forEach(id=>{
+  ['login-screen','device-confirm-screen','pending-screen','loading-screen'].forEach(id=>{
     document.getElementById(id).style.display = (id===screenId) ? 'flex' : 'none';
   });
   document.getElementById('main-app').style.display = screenId ? 'none' : 'flex';
@@ -2012,12 +2024,16 @@ function showDeviceConfirmScreen(device){
   showOnly('device-confirm-screen');
 }
 
-// 端末登録の確認画面で「送信しました」を押した時の遷移。
-// 端末IDはlocalStorageに残したまま（＝承認され次第、次回アクセス時の
-// ロード画面での自動チェックでそのままアプリに入れるようにする）、
-// ログイン画面に戻すだけでよい（ポーリングでの自動承認待ちはしない）。
-function backToLoginAfterRegister(){
-  showLoginScreen('送信済みです。管理者の承認をお待ちください。承認後、再度ログインするか、このページを開き直してください。');
+// 端末登録の確認画面で「送信しました」を押した時、または端末が承認待ちだと
+// 分かった時に表示する画面。ログインフォームを含まないことで、「もう一度
+// ログインすれば使える」という誤解を避ける。端末IDはlocalStorageに残した
+// ままなので、承認され次第、次回アクセス時のロード画面での自動チェックで
+// そのままアプリに入れる（このボタンは手動で今すぐ確認したい場合用）。
+function showPendingScreen(message){
+  const note = document.getElementById('pending-note');
+  note.innerHTML = (message ? escapeHtml(message) + '<br>' : '') +
+    'ログインし直す必要はありません。承認され次第、このページを開き直すと自動的に利用できるようになります。';
+  showOnly('pending-screen');
 }
 
 async function showApp(memberId, role){
@@ -2109,8 +2125,9 @@ async function checkDeviceStatus(){
     }
     if(data.reason === 'pending'){
       // まだ承認待ち。端末IDは破棄せず残しておき（承認され次第、次回アクセス時に
-      // このチェックが自動で通るようにする）、ログイン画面に理由を表示するだけにする。
-      showLoginScreen(data.error || '端末が承認待ちです。管理者の承認をお待ちください');
+      // このチェックが自動で通るようにする）、ログインフォームの無い専用の
+      // 承認待ち画面を表示する（ログイン画面だと再ログインが必要と誤解されるため）。
+      showPendingScreen(data.error);
       return;
     }
     // pending以外の拒否理由（revoked/expired/member_disabled/account_deleted/not_found）
@@ -2119,8 +2136,9 @@ async function checkDeviceStatus(){
     showLoginScreen(data.error || '再度ログインしてください');
   }catch(e){
     console.error(e);
-    // 通信エラーの場合は端末IDを破棄せず、ログイン画面に戻して手動で再試行できるようにする
-    showLoginScreen('通信エラーが発生しました。しばらくしてから再度お試しください');
+    // 通信エラーの場合は端末IDを破棄せず、ログインフォームには誘導しない
+    // （実際には端末が無効というわけではないため）。再試行できる画面のままにする。
+    showPendingScreen('通信エラーが発生しました。しばらくしてから「今すぐ確認する」を押してください');
   }
 }
 
