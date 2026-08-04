@@ -19,6 +19,12 @@
 const { createClient } = require('@supabase/supabase-js')
 const { requireAuth } = require('../_lib/auth')
 
+// 1メンバーが同時に持てる端末登録数の上限（pending/approved問わずカウント）。
+// これを超える場合は新規登録を拒否し、管理者に不要な端末のrevokeを依頼させる。
+// セッション乗っ取り等でregisterが連打され、無制限にdeviceId（＝実質の永続認証情報）
+// が量産されるのを防ぐための歯止め。
+const MAX_DEVICES_PER_MEMBER = 3
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST')
@@ -62,6 +68,26 @@ module.exports = async (req, res) => {
 
     if (!member || member.status === '無効') {
       res.status(403).json({ error: 'アカウントが無効化されています' })
+      return
+    }
+
+    // 登録済み端末数の上限チェック（revoke済みは行自体が削除される運用のため、
+    // 現存する行数 = pending + approved の合計をそのまま数えればよい）
+    const { count, error: countErr } = await supabase
+      .from('devices')
+      .select('id', { count: 'exact', head: true })
+      .eq('member_id', memberId)
+
+    if (countErr) {
+      console.error('devices件数取得エラー:', countErr)
+      res.status(500).json({ error: 'サーバーエラーが発生しました' })
+      return
+    }
+
+    if (typeof count === 'number' && count >= MAX_DEVICES_PER_MEMBER) {
+      res.status(429).json({
+        error: `登録できる端末数の上限（${MAX_DEVICES_PER_MEMBER}台）に達しています。使わなくなった端末を管理者に無効化してもらってください。`,
+      })
       return
     }
 
