@@ -59,6 +59,66 @@
       "reinforce": { "x": 64, "y": 53, "size": 70 }
     }
   },
+  "秦国三大天➀": {
+    "arc": "qin",
+    "image": "stages/shin_sandaiten1.png",
+    "points": {
+      "main": { "x": 466, "y": 350, "size": 90 },
+      "army1": { "x": 354, "y": 257, "size": 90 },
+      "army2": { "x": 579, "y": 444, "size": 90 },
+      "army3": { "x": 241, "y": 161, "size": 90 },
+      "army4": { "x": 708, "y": 554, "size": 90 },
+      "reinforce": { "x": 131, "y": 70, "size": 90 }
+    }
+  },
+  "秦国三大天➁": {
+    "arc": "qin",
+    "image": "stages/shin_sandaiten2.png",
+    "points": {
+      "main": { "x": 280, "y": 101, "size": 90 },
+      "army1": { "x": 383, "y": 195, "size": 90 },
+      "army2": { "x": 493, "y": 292, "size": 90 },
+      "army3": { "x": 176, "y": 183, "size": 90 },
+      "army4": { "x": 276, "y": 274, "size": 90 },
+      "reinforce": { "x": 387, "y": 374, "size": 90 }
+    }
+  },
+  "秦国三大天➂": {
+    "arc": "qin",
+    "image": "stages/shin_sandaiten3.png",
+    "points": {
+      "main": { "x": 405, "y": 84, "size": 110 },
+      "army1": { "x": 786, "y": 403, "size": 110 },
+      "army2": { "x": 1151, "y": 715, "size": 110 },
+      "army3": { "x": 411, "y": 737, "size": 110 },
+      "army4": { "x": 89, "y": 453, "size": 110 },
+      "reinforce": { "x": 720, "y": 1002, "size": 110 }
+    }
+  },
+  "秦国三大天➃": {
+    "arc": "qin",
+    "image": "stages/shin_sandaiten4.png",
+    "points": {
+      "main": { "x": 331, "y": 95, "size": 80 },
+      "army1": { "x": 446, "y": 186, "size": 80 },
+      "army2": { "x": 244, "y": 170, "size": 80 },
+      "army3": { "x": 355, "y": 263, "size": 80 },
+      "army4": { "x": 153, "y": 247, "size": 80 },
+      "reinforce": { "x": 263, "y": 340, "size": 80 }
+    }
+  },
+  "秦国三大天➄": {
+    "arc": "qin",
+    "image": "stages/shin_sandaiten5.png",
+    "points": {
+      "main": { "x": 287, "y": 305, "size": 100 },
+      "army1": { "x": 159, "y": 186, "size": 100 },
+      "army2": { "x": 421, "y": 424, "size": 100 },
+      "army3": { "x": 284, "y": 78, "size": 100 },
+      "army4": { "x": 413, "y": 186, "size": 100 },
+      "reinforce": { "x": 544, "y": 303, "size": 100 }
+    }
+  },
   "秦国三大天➅": {
     "arc": "qin",
     "image": "stages/shin_sandaiten6.png",
