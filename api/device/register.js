@@ -71,6 +71,55 @@ module.exports = async (req, res) => {
       return
     }
 
+    const userAgent = req.headers['user-agent'] || null
+
+    // 同一端末からの重複登録防止。
+    // 例：iPhoneのSafariでログイン→ホーム画面に追加→そこから開くと、
+    // localStorageがSafariとホーム画面アプリ(スタンドアロン表示)で別々になるため、
+    // クライアント側だけでは「同じ端末だ」と判定できず、registerが2回呼ばれてしまう。
+    // ただしiOSではSafariとホーム画面追加後のUser-Agentはほぼ同一文字列になるため、
+    // ここでは member_id + User-Agent の完全一致を「同一端末」とみなし、
+    // 既存行があれば新規発行せずそれを使い回す（＝上書き）。
+    // 一方、同じIDでもスマホとPCはUser-Agentが明確に異なるため別端末として扱われる。
+    //
+    // 注意（既知の限界）：全く同じ機種・同じOS/ブラウザのバージョンを使う
+    // 2台の異なる端末は、User-Agentだけでは区別できず誤って同一端末とみなされる
+    // 可能性がある。より厳密にやるならクライアント側で生成した永続フィンガープリント等
+    // 追加の識別子が必要だが、今回の要件（同一端末からの二重登録防止）には
+    // このUser-Agent一致判定で十分と判断した。
+    let dupQuery = supabase
+      .from('devices')
+      .select('id, member_id, status, issued_at, expires_at')
+      .eq('member_id', memberId)
+
+    dupQuery = userAgent
+      ? dupQuery.eq('user_agent', userAgent)
+      : dupQuery.is('user_agent', null)
+
+    const { data: existingDevices, error: dupErr } = await dupQuery
+
+    if (dupErr) {
+      console.error('devices重複チェックエラー:', dupErr)
+      res.status(500).json({ error: 'サーバーエラーが発生しました' })
+      return
+    }
+
+    if (existingDevices && existingDevices.length > 0) {
+      // 同一端末（同一UA）の登録が既にある場合は新規発行せず、
+      // その端末情報をそのまま返す（ステータス・発行時刻は変更しない）。
+      const existing = existingDevices[0]
+      res.status(200).json({
+        ok: true,
+        deviceId: existing.id,
+        memberId: existing.member_id,
+        memberName: member.name,
+        status: existing.status,
+        issuedAt: existing.issued_at,
+        reused: true, // 新規申請ではなく既存端末を再利用したことをフロントで判別可能にする
+      })
+      return
+    }
+
     // 登録済み端末数の上限チェック（revoke済みは行自体が削除される運用のため、
     // 現存する行数 = pending + approved の合計をそのまま数えればよい）
     const { count, error: countErr } = await supabase
@@ -90,8 +139,6 @@ module.exports = async (req, res) => {
       })
       return
     }
-
-    const userAgent = req.headers['user-agent'] || null
 
     const { data: device, error: insertErr } = await supabase
       .from('devices')

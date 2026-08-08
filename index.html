@@ -490,6 +490,22 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
   display:flex;align-items:center;justify-content:center;
   padding:20px;overflow-y:auto;
 }
+
+/* Discordアプリ内ブラウザで開いている場合の注意バナー */
+/* .auth-overlay(z-index:1000)より前面に出し、ログイン画面の上にも常に見えるようにする */
+.webview-banner{
+  position:fixed;top:0;left:0;right:0;z-index:2000;
+  display:flex;align-items:flex-start;gap:8px;
+  background:#f5d76e;color:#4a3a00;
+  padding:10px 12px;font-size:12px;line-height:1.6;
+  box-shadow:0 2px 6px rgba(0,0,0,0.15);
+}
+.webview-banner-text{flex:1}
+.webview-banner-text b{font-weight:700}
+.webview-banner-close{
+  flex-shrink:0;background:none;border:none;color:#4a3a00;
+  font-size:16px;line-height:1;cursor:pointer;padding:2px 4px;
+}
 .auth-box{
   width:100%;max-width:360px;
   background:var(--card);border:1px solid var(--card-border);
@@ -554,6 +570,15 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 </style>
 </head>
 <body>
+
+<!-- Discordアプリ内ブラウザで開いている場合の注意バナー（JSで該当時のみ表示） -->
+<div class="webview-banner" id="webview-banner" style="display:none">
+  <div class="webview-banner-text">
+    <b>Discordアプリ内のブラウザで開いています。</b><br>
+    端末が別端末として認識されてしまうことがあるため、右上の「…」（または共有）メニューから「ブラウザで開く」を選んでアクセスし直してください。
+  </div>
+  <button class="webview-banner-close" onclick="dismissWebviewBanner()" aria-label="閉じる">×</button>
+</div>
 
 <!-- ログイン画面 -->
 <div class="auth-overlay" id="login-screen">
@@ -1984,8 +2009,34 @@ document.addEventListener('paste', (e) => {
 // 認証・端末認証（ログイン / 端末登録 / 端末検証 / 管理者用端末情報）
 // ===================================================================
 const DEVICE_ID_STORAGE_KEY = 'toubatsu_device_id';
+const WEBVIEW_BANNER_DISMISSED_KEY = 'toubatsu_webview_banner_dismissed';
 let CURRENT_MEMBER_ID = null;
 let CURRENT_MEMBER_ROLE = null;
+
+// Discordアプリ内蔵ブラウザ（WebView）で開かれているかどうかの簡易判定。
+// DiscordのiOS/Android内蔵ブラウザは通常のSafari/Chromeとは異なるUser-Agentを
+// 送ってくる（"Discord"という文字列を含む）ため、これを手がかりに検出する。
+// ※あくまで簡易判定であり、将来Discord側の実装変更で検出できなくなる可能性はある。
+function isDiscordWebView(){
+  const ua = navigator.userAgent || '';
+  return /Discord/i.test(ua);
+}
+
+// 端末の重複登録防止（register.js側のUser-Agent一致判定）が正しく機能するよう、
+// Discordアプリ内ブラウザで開いている場合は「別端末として登録される可能性がある」
+// ことを警告するバナーを表示する。1回閉じたら、このブラウザでは以後表示しない。
+function showWebviewBannerIfNeeded(){
+  if(!isDiscordWebView()) return;
+  if(sessionStorage.getItem(WEBVIEW_BANNER_DISMISSED_KEY)) return;
+  const banner = document.getElementById('webview-banner');
+  if(banner) banner.style.display = 'flex';
+}
+
+function dismissWebviewBanner(){
+  sessionStorage.setItem(WEBVIEW_BANNER_DISMISSED_KEY, '1');
+  const banner = document.getElementById('webview-banner');
+  if(banner) banner.style.display = 'none';
+}
 
 // screenId: 'login-screen' | 'device-confirm-screen' | 'pending-screen' | 'loading-screen' | null（null=本編アプリを表示）
 function showOnly(screenId){
@@ -2251,6 +2302,7 @@ async function startApp(){
 // 検証中はロード画面を表示し、結果に応じて編成画面 or ログイン画面へ遷移する。
 // 端末IDが無ければ、チェックするまでもなくログイン画面を表示する。
 (function bootstrapAuth(){
+  showWebviewBannerIfNeeded(); // Discordアプリ内ブラウザなら警告バナーを表示（認証状態に関わらず）
   const deviceId = localStorage.getItem(DEVICE_ID_STORAGE_KEY);
   if(deviceId){
     showOnly('loading-screen');
