@@ -18,6 +18,12 @@
 // ・members.status が「無効」、または auth_role が存在しない（アカウント削除済み）
 //   場合はログインさせない
 // ・エラー詳細はサーバーログにのみ出し、クライアントには汎用メッセージのみ返す
+//
+// [DB往復回数について（軽量化）]
+// 旧実装は members取得 → auth_role取得 の2往復だったが、PostgRESTのネストselect
+// （devices.jsやadmin.jsと同じ書き方）で1クエリにまとめている。
+// ※ 前提：auth_role.member_id -> members.id のFK制約名が auth_role_member_id_fkey
+//   であること（実際の制約名と異なる場合は書き換えてください）
 
 const bcrypt = require('bcryptjs')
 const { createClient } = require('@supabase/supabase-js')
@@ -56,10 +62,13 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // members側の在籍状況（有効/無効）を確認
+    // members + auth_role を1クエリで取得（在籍状況とパスワード情報を同時に引く）
     const { data: member, error: memberErr } = await supabase
       .from('members')
-      .select('id, name, status')
+      .select(
+        `id, name, status,
+         auth_role!auth_role_member_id_fkey(role, password)`
+      )
       .eq('id', memberIdNum)
       .maybeSingle()
 
@@ -75,18 +84,9 @@ module.exports = async (req, res) => {
       return
     }
 
-    // auth_role（パスワード・ロール）を取得
-    const { data: authRole, error: authErr } = await supabase
-      .from('auth_role')
-      .select('role, password')
-      .eq('member_id', memberIdNum)
-      .maybeSingle()
-
-    if (authErr) {
-      console.error('auth_role取得エラー:', authErr)
-      res.status(500).json({ error: 'サーバーエラーが発生しました' })
-      return
-    }
+    // ネストselectの結果（1対1想定だが配列で返る場合にも対応）
+    const authRoleRaw = member.auth_role
+    const authRole = Array.isArray(authRoleRaw) ? authRoleRaw[0] : authRoleRaw
 
     // auth_roleが存在しない = アカウント（権限情報）が削除済み
     if (!authRole || !authRole.password) {

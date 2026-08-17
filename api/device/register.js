@@ -15,6 +15,12 @@
 //
 // [モジュール形式]
 // このアプリの /api 配下は chars.js / login.js と同じ CommonJS で統一。
+//
+// [DB往復回数について（軽量化）]
+// 旧実装は「同一端末(UA一致)の重複チェック用select」と「登録数カウント用のcount
+// select」を別々に投げていたが、同じ member_id の devices を1回のselectで
+// まとめて取得し、重複判定（UA一致するものがあるか）と件数チェック（配列の
+// length）の両方をJS側で行うことで、往復を1回減らしている。
 
 const { createClient } = require('@supabase/supabase-js')
 const { requireAuth } = require('../_lib/auth')
@@ -73,7 +79,12 @@ module.exports = async (req, res) => {
 
     const userAgent = req.headers['user-agent'] || null
 
-    // 同一端末からの重複登録防止。
+    // 同一メンバーのdevicesを1回でまとめて取得し、
+    //   1) 同一端末（UA完全一致）の重複チェック
+    //   2) 登録済み端末数の上限チェック（count用の別クエリを廃止し、この配列のlengthを使う）
+    // の両方をJS側で行う。
+    //
+    // 同一端末判定の考え方（元コメントのまま）：
     // 例：iPhoneのSafariでログイン→ホーム画面に追加→そこから開くと、
     // localStorageがSafariとホーム画面アプリ(スタンドアロン表示)で別々になるため、
     // クライアント側だけでは「同じ端末だ」と判定できず、registerが2回呼ばれてしまう。
@@ -87,27 +98,26 @@ module.exports = async (req, res) => {
     // 可能性がある。より厳密にやるならクライアント側で生成した永続フィンガープリント等
     // 追加の識別子が必要だが、今回の要件（同一端末からの二重登録防止）には
     // このUser-Agent一致判定で十分と判断した。
-    let dupQuery = supabase
+    const { data: memberDevices, error: devicesErr } = await supabase
       .from('devices')
-      .select('id, member_id, status, issued_at, expires_at')
+      .select('id, member_id, status, issued_at, expires_at, user_agent')
       .eq('member_id', memberId)
 
-    dupQuery = userAgent
-      ? dupQuery.eq('user_agent', userAgent)
-      : dupQuery.is('user_agent', null)
-
-    const { data: existingDevices, error: dupErr } = await dupQuery
-
-    if (dupErr) {
-      console.error('devices重複チェックエラー:', dupErr)
+    if (devicesErr) {
+      console.error('devices取得エラー:', devicesErr)
       res.status(500).json({ error: 'サーバーエラーが発生しました' })
       return
     }
 
-    if (existingDevices && existingDevices.length > 0) {
+    const devices = memberDevices || []
+
+    const existing = userAgent
+      ? devices.find(d => d.user_agent === userAgent)
+      : devices.find(d => d.user_agent == null)
+
+    if (existing) {
       // 同一端末（同一UA）の登録が既にある場合は新規発行せず、
       // その端末情報をそのまま返す（ステータス・発行時刻は変更しない）。
-      const existing = existingDevices[0]
       res.status(200).json({
         ok: true,
         deviceId: existing.id,
@@ -122,18 +132,7 @@ module.exports = async (req, res) => {
 
     // 登録済み端末数の上限チェック（revoke済みは行自体が削除される運用のため、
     // 現存する行数 = pending + approved の合計をそのまま数えればよい）
-    const { count, error: countErr } = await supabase
-      .from('devices')
-      .select('id', { count: 'exact', head: true })
-      .eq('member_id', memberId)
-
-    if (countErr) {
-      console.error('devices件数取得エラー:', countErr)
-      res.status(500).json({ error: 'サーバーエラーが発生しました' })
-      return
-    }
-
-    if (typeof count === 'number' && count >= MAX_DEVICES_PER_MEMBER) {
+    if (devices.length >= MAX_DEVICES_PER_MEMBER) {
       res.status(429).json({
         error: `登録できる端末数の上限（${MAX_DEVICES_PER_MEMBER}台）に達しています。使わなくなった端末を管理者に無効化してもらってください。`,
       })

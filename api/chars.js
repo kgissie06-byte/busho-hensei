@@ -80,7 +80,13 @@ module.exports = async (req, res) => {
       img: optimizeCloudinaryUrl(row.img)
     }));
 
-    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
+    // s-maxage: Vercel Edge等の共有キャッシュ向け（既存のまま）
+    // max-age: ブラウザ自体のキャッシュ向け（追加）。
+    //   これまでmax-ageが無かったため、同じ端末で何度リロードしても
+    //   毎回Vercelまでリクエストが飛んでいた。キャラ一覧は頻繁に変わる
+    //   データではないので、30秒だけブラウザキャッシュを効かせて
+    //   短時間の再訪問・再読み込みでの無駄な通信を減らす。
+    res.setHeader('Cache-Control', 'max-age=30, s-maxage=60, stale-while-revalidate=300');
     res.status(200).json(optimized);
   } catch (e) {
     console.error(e);
