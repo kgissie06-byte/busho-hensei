@@ -179,6 +179,66 @@
       "reinforce": { "x": 207, "y": 245, "size": 65 }
     }
   },
+  "合従軍三大天➀": {
+    "arc": "gasshou",
+    "image": "stages/gasshou_sandaiten1.png",
+    "points": {
+      "main": { "x": 246, "y": 71, "size": 85 },
+      "army1": { "x": 341, "y": 157, "size": 85 },
+      "army2": { "x": 439, "y": 245, "size": 85 },
+      "army3": { "x": 546, "y": 338, "size": 85 },
+      "army4": { "x": 659, "y": 438, "size": 85 },
+      "reinforce": { "x": 144, "y": 141, "size": 85 }
+    }
+  },
+  "合従軍三大天➁": {
+    "arc": "gasshou",
+    "image": "stages/gasshou_sandaiten2.png",
+    "points": {
+      "main": { "x": 467, "y": 137, "size": 85 },
+      "army1": { "x": 370, "y": 69, "size": 85 },
+      "army2": { "x": 578, "y": 224, "size": 85 },
+      "army3": { "x": 288, "y": 284, "size": 85 },
+      "army4": { "x": 198, "y": 192, "size": 85 },
+      "reinforce": { "x": 394, "y": 383, "size": 85 }
+    }
+  },
+  "合従軍三大天➂": {
+    "arc": "gasshou",
+    "image": "stages/gasshou_sandaiten3.png",
+    "points": {
+      "main": { "x": 691, "y": 292, "size": 120 },
+      "army1": { "x": 565, "y": 180, "size": 120 },
+      "army2": { "x": 811, "y": 414, "size": 120 },
+      "army3": { "x": 473, "y": 717, "size": 120 },
+      "army4": { "x": 350, "y": 603, "size": 120 },
+      "reinforce": { "x": 596, "y": 835, "size": 120 }
+    }
+  },
+  "合従軍三大天➃": {
+    "arc": "gasshou",
+    "image": "stages/gasshou_sandaiten4.png",
+    "points": {
+      "main": { "x": 303, "y": 266, "size": 80 },
+      "army1": { "x": 214, "y": 182, "size": 80 },
+      "army2": { "x": 402, "y": 362, "size": 80 },
+      "army3": { "x": 302, "y": 124, "size": 80 },
+      "army4": { "x": 390, "y": 209, "size": 80 },
+      "reinforce": { "x": 492, "y": 292, "size": 80 }
+    }
+  },
+  "合従軍三大天➄": {
+    "arc": "gasshou",
+    "image": "stages/gasshou_sandaiten5.png",
+    "points": {
+      "main": { "x": 347, "y": 315, "size": 100 },
+      "army1": { "x": 231, "y": 198, "size": 100 },
+      "army2": { "x": 466, "y": 432, "size": 100 },
+      "army3": { "x": 363, "y": 100, "size": 100 },
+      "army4": { "x": 477, "y": 202, "size": 100 },
+      "reinforce": { "x": 597, "y": 320, "size": 100 }
+    }
+  },
   "魏国三大天➀": {
     "arc": "gi",
     "image": "stages/gi_sandaiten1.png",
