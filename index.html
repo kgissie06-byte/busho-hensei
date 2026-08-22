@@ -210,15 +210,34 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 .action-btn.timing-on{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
 .action-btn.timing-special{background:var(--green-bg);border-color:var(--green);color:var(--green)}
 .action-btn.policy-on{background:#f0e0c8;border-color:#c08030;color:#7a4010}
-select.action-btn{
-  -webkit-appearance:none;-moz-appearance:none;appearance:none;
-  text-align:center;text-align-last:center;
-  outline:none;-webkit-tap-highlight-color:transparent;
-}
-select.action-btn:focus{outline:none;box-shadow:none}
-select.action-btn::-moz-focus-inner{border:0}
-select.action-btn option{background:#f8f4ea;color:var(--text);font-weight:normal}
+.action-btn{-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+.action-btn.dd-open{border-bottom-left-radius:0;border-bottom-right-radius:0}
 .btn-row-label{font-size:8px;color:var(--text-muted);margin-top:1px}
+
+/* カスタムドロップダウン（行動ボタンの選択肢一覧） */
+#dropdown-root{position:fixed;inset:0;pointer-events:none;z-index:1000}
+.custom-dropdown-panel{
+  position:fixed;pointer-events:auto;
+  background:var(--card);
+  border:1.5px solid var(--card-border);border-top:none;
+  border-radius:0 0 4px 4px;
+  overflow:hidden;
+  box-shadow:0 3px 8px rgba(0,0,0,0.2);
+}
+.custom-dropdown-item{
+  padding:5px 4px;font-size:9px;font-weight:500;line-height:1.3;
+  text-align:center;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  background:var(--card);color:var(--text);
+}
+.custom-dropdown-item:hover{background:var(--card-hover)}
+.custom-dropdown-item.off{color:var(--text-muted)}
+.custom-dropdown-item.off.active{background:#e0dbd0}
+.custom-dropdown-item.timing-on{color:var(--blue)}
+.custom-dropdown-item.timing-on.active{background:var(--blue-bg)}
+.custom-dropdown-item.timing-special{color:var(--green)}
+.custom-dropdown-item.timing-special.active{background:var(--green-bg)}
+.custom-dropdown-item.policy-on{color:#7a4010}
+.custom-dropdown-item.policy-on.active{background:#f0e0c8}
 
 /* ボトムバー */
 .bottom-bar{
@@ -557,6 +576,7 @@ select.action-btn option{background:#f8f4ea;color:var(--text);font-weight:normal
 </style>
 </head>
 <body>
+<div id="dropdown-root"></div>
 
 <!-- ログイン画面 -->
 <div class="auth-overlay" id="login-screen">
@@ -1805,18 +1825,75 @@ function timingBtnClass(col){
 function policyBtnClass(col){
   return policies[col]===0 ? 'action-btn off' : 'action-btn policy-on';
 }
-function timingSelectHTML(col){
-  const opts = TIMING_OPTS.map((label,idx)=>
-    `<option value="${idx}"${idx===timings[col]?' selected':''}>${label}</option>`
-  ).join('');
-  return `<select class="${timingBtnClass(col)}" onchange="setTiming(${col},this.value)" onclick="event.stopPropagation()">${opts}</select>`;
+function timingTriggerHTML(col){
+  return `<div class="${timingBtnClass(col)}" data-dd-type="timing" data-dd-col="${col}" onclick="toggleDropdown('timing',${col},event)">${TIMING_OPTS[timings[col]]}</div>`;
 }
-function policySelectHTML(col){
-  const opts = POLICY_OPTS.map((label,idx)=>
-    `<option value="${idx}"${idx===policies[col]?' selected':''}>${label}</option>`
-  ).join('');
-  return `<select class="${policyBtnClass(col)}" onchange="setPolicy(${col},this.value)" onclick="event.stopPropagation()">${opts}</select>`;
+function policyTriggerHTML(col){
+  return `<div class="${policyBtnClass(col)}" data-dd-type="policy" data-dd-col="${col}" onclick="toggleDropdown('policy',${col},event)">${POLICY_OPTS[policies[col]]}</div>`;
 }
+
+// ===== カスタムドロップダウン（TIMING_OPTS / POLICY_OPTS）=====
+let openDropdown = null; // {trigger, panel}
+
+function ddItemClass(type, idx){
+  if(type==='timing'){
+    if(idx===0) return 'off';
+    if(idx===1) return 'timing-on';
+    return 'timing-special';
+  }
+  return idx===0 ? 'off' : 'policy-on';
+}
+
+function closeDropdown(){
+  if(openDropdown){
+    openDropdown.trigger.classList.remove('dd-open');
+    openDropdown.panel.remove();
+    openDropdown = null;
+  }
+}
+
+function toggleDropdown(type, col, ev){
+  ev.stopPropagation();
+  const trigger = ev.currentTarget;
+  if(openDropdown && openDropdown.trigger === trigger){
+    closeDropdown();
+    return;
+  }
+  closeDropdown();
+
+  const opts = type==='timing' ? TIMING_OPTS : POLICY_OPTS;
+  const current = type==='timing' ? timings[col] : policies[col];
+  const rect = trigger.getBoundingClientRect();
+
+  const panel = document.createElement('div');
+  panel.className = 'custom-dropdown-panel';
+  panel.style.left = rect.left+'px';
+  panel.style.top = rect.bottom+'px';
+  panel.style.width = rect.width+'px';
+  panel.style.borderColor = getComputedStyle(trigger).borderColor;
+
+  opts.forEach((label, idx)=>{
+    const item = document.createElement('div');
+    const cls = ddItemClass(type, idx);
+    item.className = 'custom-dropdown-item ' + cls + (idx===current ? ' active' : '');
+    item.textContent = label;
+    item.onclick = (e)=>{
+      e.stopPropagation();
+      if(type==='timing') setTiming(col, idx); else setPolicy(col, idx);
+      closeDropdown();
+    };
+    panel.appendChild(item);
+  });
+
+  document.getElementById('dropdown-root').appendChild(panel);
+  trigger.classList.add('dd-open');
+  openDropdown = {trigger, panel};
+}
+
+document.addEventListener('click', closeDropdown);
+window.addEventListener('scroll', closeDropdown, true);
+window.addEventListener('resize', closeDropdown);
+
 
 function render(){
   document.getElementById('slots-grid').innerHTML = COLS.map((col,i)=>`
@@ -1830,8 +1907,8 @@ function render(){
       }
       ${i!==5 ? `
         <div class="col-divider"></div>
-        ${timingSelectHTML(i)}
-        ${policySelectHTML(i)}
+        ${timingTriggerHTML(i)}
+        ${policyTriggerHTML(i)}
       ` : `
         <div class="col-divider" style="visibility:hidden"></div>
         <div class="btn-row-label" style="visibility:hidden">-</div>
