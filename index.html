@@ -227,16 +227,14 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 .custom-dropdown-item{
   padding:5px 4px;font-size:9px;font-weight:500;line-height:1.3;
   text-align:center;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  background:var(--card);color:var(--text);
+  background:var(--card);color:var(--text)!important;
+  border-bottom:1px solid var(--card-border);
 }
+.custom-dropdown-item:last-child{border-bottom:none}
 .custom-dropdown-item:hover{background:var(--card-hover)}
-.custom-dropdown-item.off{color:var(--text-muted)}
 .custom-dropdown-item.off.active{background:#e0dbd0}
-.custom-dropdown-item.timing-on{color:var(--blue)}
 .custom-dropdown-item.timing-on.active{background:var(--blue-bg)}
-.custom-dropdown-item.timing-special{color:var(--green)}
 .custom-dropdown-item.timing-special.active{background:var(--green-bg)}
-.custom-dropdown-item.policy-on{color:#7a4010}
 .custom-dropdown-item.policy-on.active{background:#f0e0c8}
 
 /* ボトムバー */
