@@ -210,6 +210,11 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 .action-btn.timing-on{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
 .action-btn.timing-special{background:var(--green-bg);border-color:var(--green);color:var(--green)}
 .action-btn.policy-on{background:#f0e0c8;border-color:#c08030;color:#7a4010}
+select.action-btn{
+  -webkit-appearance:none;-moz-appearance:none;appearance:none;
+  text-align:center;text-align-last:center;
+}
+select.action-btn option{background:#f8f4ea;color:var(--text);font-weight:normal}
 .btn-row-label{font-size:8px;color:var(--text-muted);margin-top:1px}
 
 /* ボトムバー */
@@ -1757,8 +1762,8 @@ function finishDrag(){
   render();
 }
 
-function cycleTiming(col){ timings[col]=(timings[col]+1)%TIMING_OPTS.length; render(); }
-function cyclePolicy(col){ policies[col]=(policies[col]+1)%POLICY_OPTS.length; render(); }
+function setTiming(col,val){ timings[col]=Number(val); render(); }
+function setPolicy(col,val){ policies[col]=Number(val); render(); }
 
 function slotCardHTML(col,role){
   const g = slots[col][role];
@@ -1797,6 +1802,18 @@ function timingBtnClass(col){
 function policyBtnClass(col){
   return policies[col]===0 ? 'action-btn off' : 'action-btn policy-on';
 }
+function timingSelectHTML(col){
+  const opts = TIMING_OPTS.map((label,idx)=>
+    `<option value="${idx}"${idx===timings[col]?' selected':''}>${label}</option>`
+  ).join('');
+  return `<select class="${timingBtnClass(col)}" onchange="setTiming(${col},this.value)" onclick="event.stopPropagation()">${opts}</select>`;
+}
+function policySelectHTML(col){
+  const opts = POLICY_OPTS.map((label,idx)=>
+    `<option value="${idx}"${idx===policies[col]?' selected':''}>${label}</option>`
+  ).join('');
+  return `<select class="${policyBtnClass(col)}" onchange="setPolicy(${col},this.value)" onclick="event.stopPropagation()">${opts}</select>`;
+}
 
 function render(){
   document.getElementById('slots-grid').innerHTML = COLS.map((col,i)=>`
@@ -1810,8 +1827,8 @@ function render(){
       }
       ${i!==5 ? `
         <div class="col-divider"></div>
-        <button class="${timingBtnClass(i)}" onclick="cycleTiming(${i})">${TIMING_OPTS[timings[i]]}</button>
-        <button class="${policyBtnClass(i)}" onclick="cyclePolicy(${i})">${POLICY_OPTS[policies[i]]}</button>
+        ${timingSelectHTML(i)}
+        ${policySelectHTML(i)}
       ` : `
         <div class="col-divider" style="visibility:hidden"></div>
         <div class="btn-row-label" style="visibility:hidden">-</div>
