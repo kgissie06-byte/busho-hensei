@@ -689,6 +689,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
     <div class="point-wrap">
       <div class="point-header">
         <select class="point-select" id="point-arc-select" onchange="renderPointTab()"></select>
+        <button class="icon-btn" onclick="savePointScreenshot()" title="ポイント効率をスクリーンショット保存"><i class="ti ti-camera" aria-hidden="true"></i></button>
       </div>
       <div class="point-body">
         <div class="point-table-col">
@@ -1564,28 +1565,16 @@ function renderPreviewOverlay(){
   }).join('');
 }
 
-function saveScreenshot(){
-  const target = document.getElementById('slots-grid');
-  if(!target || typeof html2canvas === 'undefined'){
-    alert('スクリーンショット機能の読み込みに失敗しました。通信環境を確認してください。');
-    return;
-  }
-  const bgColor = getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#f0ebe0';
-  html2canvas(target, {
-    backgroundColor: bgColor,
-    scale: Math.max(window.devicePixelRatio || 1, 2),
-    useCORS: true,
-    width: target.scrollWidth,
-    height: target.scrollHeight
-  }).then(canvas => {
-    const nameInput = document.querySelector('.formation-name-input');
-    const formationName = (nameInput && nameInput.value.trim()) || '編成';
-    const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
-    const fileName = `${formationName}_${stamp}.png`;
+// 共通：canvasを画像として保存（スマホは共有シート、PCはダウンロード）
+async function exportCanvasAsImage(canvas, baseName){
+  const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+  const fileName = `${baseName}_${stamp}.png`;
 
+  return new Promise((resolve) => {
     canvas.toBlob(async (blob) => {
       if(!blob){
         alert('スクリーンショットの保存に失敗しました。');
+        resolve();
         return;
       }
       const file = new File([blob], fileName, {type:'image/png'});
@@ -1593,10 +1582,11 @@ function saveScreenshot(){
       // スマホ：共有シート経由で「写真に保存」できるようにする
       if(navigator.canShare && navigator.canShare({files:[file]})){
         try{
-          await navigator.share({files:[file], title:formationName});
+          await navigator.share({files:[file], title:baseName});
+          resolve();
           return;
         }catch(err){
-          if(err && err.name === 'AbortError') return; // 共有シートをキャンセルした場合は何もしない
+          if(err && err.name === 'AbortError'){ resolve(); return; } // 共有シートをキャンセルした場合は何もしない
           console.error(err);
           // 共有に失敗した場合は下のダウンロード方式にフォールバック
         }
@@ -1611,12 +1601,95 @@ function saveScreenshot(){
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
+      resolve();
     }, 'image/png');
+  });
+}
+
+function saveScreenshot(){
+  if(typeof html2canvas === 'undefined'){
+    alert('スクリーンショット機能の読み込みに失敗しました。通信環境を確認してください。');
+    return;
+  }
+  const dragZone = document.getElementById('slots-drag-zone');
+  if(!dragZone) return;
+
+  const bgColor = getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#f0ebe0';
+  const nameInput = document.querySelector('.formation-name-input');
+  const formationName = (nameInput && nameInput.value.trim()) || '編成';
+
+  // 編成名バナーを一時的に先頭へ挿入してから撮影し、終わったら取り除く
+  const nameBanner = document.createElement('div');
+  nameBanner.textContent = formationName;
+  nameBanner.style.cssText = 'font-size:16px;font-weight:700;color:var(--text);text-align:center;padding:2px 4px 10px;';
+  dragZone.insertBefore(nameBanner, dragZone.firstChild);
+
+  html2canvas(dragZone, {
+    backgroundColor: bgColor,
+    scale: Math.max(window.devicePixelRatio || 1, 2),
+    useCORS: true,
+    width: dragZone.scrollWidth,
+    height: dragZone.scrollHeight
+  }).then(canvas => {
+    nameBanner.remove();
+    return exportCanvasAsImage(canvas, formationName);
   }).catch(err => {
+    nameBanner.remove();
     console.error(err);
     alert('スクリーンショットの保存に失敗しました。');
   });
 }
+
+// ポイント効率タブのスクリーンショット：
+// 横スクロールが必要な表や画面外にはみ出るカードも、まとめて全体を撮影する。
+// （表・カードをオフスクリーンの複製コンテナへ組み直してから撮影することで、
+// 　実画面の overflow / スクロール位置に左右されず「全体」を必ず写す）
+function savePointScreenshot(){
+  if(typeof html2canvas === 'undefined'){
+    alert('スクリーンショット機能の読み込みに失敗しました。通信環境を確認してください。');
+    return;
+  }
+  const tableArea = document.querySelector('#tab-point .point-table-area');
+  const sideCards = document.getElementById('point-side');
+  if(!tableArea || !sideCards) return;
+
+  const bgColor = getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#f0ebe0';
+  const arcSelect = document.getElementById('point-arc-select');
+  const arcName = (arcSelect && arcSelect.selectedOptions[0] && arcSelect.selectedOptions[0].textContent.trim()) || 'ポイント効率';
+
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;left:-9999px;top:0;background:'+bgColor+';padding:14px;display:inline-flex;flex-direction:column;gap:10px;';
+
+  // カード（1〜3回目Pt＋合計Pt）を横並びで複製
+  const cardsRow = document.createElement('div');
+  cardsRow.style.cssText = 'display:flex;gap:8px;';
+  Array.from(sideCards.children).forEach(card => cardsRow.appendChild(card.cloneNode(true)));
+  wrap.appendChild(cardsRow);
+
+  // 表全体（横スクロールぶんも含めて丸ごと）を複製
+  const tableClone = tableArea.cloneNode(true);
+  tableClone.style.maxHeight = 'none';
+  tableClone.style.overflow = 'visible';
+  wrap.appendChild(tableClone);
+
+  document.body.appendChild(wrap);
+
+  html2canvas(wrap, {
+    backgroundColor: bgColor,
+    scale: Math.max(window.devicePixelRatio || 1, 2),
+    useCORS: true,
+    width: wrap.scrollWidth,
+    height: wrap.scrollHeight
+  }).then(canvas => {
+    wrap.remove();
+    return exportCanvasAsImage(canvas, arcName);
+  }).catch(err => {
+    wrap.remove();
+    console.error(err);
+    alert('スクリーンショットの保存に失敗しました。');
+  });
+}
+
 function selectGeneral(name){ selectedGeneral=name; renderList(); }
 function selectGeneralByIndex(i){
   const g = filteredList[i];
