@@ -444,7 +444,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 .point-time-input{
   width:56px;padding:3px 4px;font-size:12px;text-align:center;
   border:1px solid var(--card-border);background:#f8f4ea;
-  border-radius:4px;color:var(--text);
+  border-radius:4px;color:var(--text);vertical-align:middle;
 }
 .point-time-input:focus{outline:none;border-color:var(--blue)}
 
@@ -685,11 +685,10 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
     </div>
   </div>
 
-  <div id="tab-point" style="display:none">
+  <div id="tab-point" style="display:none;flex-direction:column;flex:1;min-height:0">
     <div class="point-wrap">
       <div class="point-header">
         <select class="point-select" id="point-arc-select" onchange="renderPointTab()"></select>
-        <button class="icon-btn" onclick="savePointScreenshot()" title="ポイント効率をスクリーンショット保存"><i class="ti ti-camera" aria-hidden="true"></i></button>
       </div>
       <div class="point-body">
         <div class="point-table-col">
@@ -728,6 +727,9 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
         </div>
         <div class="point-side" id="point-side"></div>
       </div>
+    </div>
+    <div class="bottom-bar">
+      <button class="icon-btn" onclick="savePointScreenshot()" title="ポイント効率をスクリーンショット保存"><i class="ti ti-camera" aria-hidden="true"></i></button>
     </div>
   </div>
 
