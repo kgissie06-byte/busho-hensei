@@ -210,16 +210,6 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 .action-btn.timing-on{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
 .action-btn.timing-special{background:var(--green-bg);border-color:var(--green);color:var(--green)}
 .action-btn.policy-on{background:#f0e0c8;border-color:#c08030;color:#7a4010}
-select.action-btn{
-  -webkit-appearance:none;-moz-appearance:none;appearance:none;
-  text-align:center;text-align-last:center;
-  background-repeat:no-repeat;background-position:right 3px center;background-size:8px 5px;
-  padding-right:14px;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M0 0 L5 6 L10 0 Z' fill='%237a6a50'/%3E%3C/svg%3E");
-}
-select.action-btn.timing-on{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M0 0 L5 6 L10 0 Z' fill='%232255aa'/%3E%3C/svg%3E")}
-select.action-btn.timing-special{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M0 0 L5 6 L10 0 Z' fill='%232a8040'/%3E%3C/svg%3E")}
-select.action-btn.policy-on{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M0 0 L5 6 L10 0 Z' fill='%237a4010'/%3E%3C/svg%3E")}
 .btn-row-label{font-size:8px;color:var(--text-muted);margin-top:1px}
 
 /* ボトムバー */
@@ -1767,8 +1757,8 @@ function finishDrag(){
   render();
 }
 
-function setTiming(col,val){ timings[col]=Number(val); render(); }
-function setPolicy(col,val){ policies[col]=Number(val); render(); }
+function cycleTiming(col){ timings[col]=(timings[col]+1)%TIMING_OPTS.length; render(); }
+function cyclePolicy(col){ policies[col]=(policies[col]+1)%POLICY_OPTS.length; render(); }
 
 function slotCardHTML(col,role){
   const g = slots[col][role];
@@ -1807,18 +1797,6 @@ function timingBtnClass(col){
 function policyBtnClass(col){
   return policies[col]===0 ? 'action-btn off' : 'action-btn policy-on';
 }
-function timingSelectHTML(col){
-  const opts = TIMING_OPTS.map((label,idx)=>
-    `<option value="${idx}"${idx===timings[col]?' selected':''}>${label}</option>`
-  ).join('');
-  return `<select class="${timingBtnClass(col)}" onchange="setTiming(${col},this.value)" onclick="event.stopPropagation()">${opts}</select>`;
-}
-function policySelectHTML(col){
-  const opts = POLICY_OPTS.map((label,idx)=>
-    `<option value="${idx}"${idx===policies[col]?' selected':''}>${label}</option>`
-  ).join('');
-  return `<select class="${policyBtnClass(col)}" onchange="setPolicy(${col},this.value)" onclick="event.stopPropagation()">${opts}</select>`;
-}
 
 function render(){
   document.getElementById('slots-grid').innerHTML = COLS.map((col,i)=>`
@@ -1832,8 +1810,8 @@ function render(){
       }
       ${i!==5 ? `
         <div class="col-divider"></div>
-        ${timingSelectHTML(i)}
-        ${policySelectHTML(i)}
+        <button class="${timingBtnClass(i)}" onclick="cycleTiming(${i})">${TIMING_OPTS[timings[i]]}</button>
+        <button class="${policyBtnClass(i)}" onclick="cyclePolicy(${i})">${POLICY_OPTS[policies[i]]}</button>
       ` : `
         <div class="col-divider" style="visibility:hidden"></div>
         <div class="btn-row-label" style="visibility:hidden">-</div>
