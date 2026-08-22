@@ -213,7 +213,10 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 select.action-btn{
   -webkit-appearance:none;-moz-appearance:none;appearance:none;
   text-align:center;text-align-last:center;
+  outline:none;-webkit-tap-highlight-color:transparent;
 }
+select.action-btn:focus{outline:none;box-shadow:none}
+select.action-btn::-moz-focus-inner{border:0}
 select.action-btn option{background:#f8f4ea;color:var(--text);font-weight:normal}
 .btn-row-label{font-size:8px;color:var(--text-muted);margin-top:1px}
 
