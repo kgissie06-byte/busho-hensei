@@ -1689,6 +1689,18 @@ function savePointScreenshot(){
     cell.style.top = 'auto';
     cell.style.boxShadow = 'none';
   });
+  // タイム入力欄(<input>)はhtml2canvasだと値の描画が崩れる（上下が欠ける）ことがあるため、
+  // 同じ見た目のテキスト表示に置き換えてから撮影する
+  tableClone.querySelectorAll('input.point-time-input').forEach(inp => {
+    const disp = document.createElement('div');
+    disp.className = 'point-time-input';
+    disp.style.display = 'inline-flex';
+    disp.style.alignItems = 'center';
+    disp.style.justifyContent = 'center';
+    disp.style.boxSizing = 'border-box';
+    disp.textContent = inp.value || '0:00';
+    inp.replaceWith(disp);
+  });
   wrap.appendChild(tableClone);
 
   overlay.appendChild(wrap);
