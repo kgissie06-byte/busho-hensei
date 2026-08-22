@@ -1642,8 +1642,9 @@ function saveScreenshot(){
 
 // ポイント効率タブのスクリーンショット：
 // 横スクロールが必要な表や画面外にはみ出るカードも、まとめて全体を撮影する。
-// （表・カードをオフスクリーンの複製コンテナへ組み直してから撮影することで、
-// 　実画面の overflow / スクロール位置に左右されず「全体」を必ず写す）
+// html2canvasは画面外(position:fixedの遠方配置)やposition:stickyの列と相性が悪く
+// レイアウトが崩れることがあるため、複製した要素は実際に画面上（ただし他のUIより
+// 手前の全画面オーバーレイ内）に一時表示してから撮影し、撮影後すぐに取り除く。
 function savePointScreenshot(){
   if(typeof html2canvas === 'undefined'){
     alert('スクリーンショット機能の読み込みに失敗しました。通信環境を確認してください。');
@@ -1657,8 +1658,16 @@ function savePointScreenshot(){
   const arcSelect = document.getElementById('point-arc-select');
   const arcName = (arcSelect && arcSelect.selectedOptions[0] && arcSelect.selectedOptions[0].textContent.trim()) || 'ポイント効率';
 
+  // 全画面オーバーレイ（撮影用に一時表示。overflowはvisibleにして中身が
+  // どんなに大きくてもクリップされないようにする）
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position:fixed;inset:0;z-index:99999;background:${bgColor};
+    overflow:visible;
+  `;
+
   const wrap = document.createElement('div');
-  wrap.style.cssText = 'position:fixed;left:-9999px;top:0;background:'+bgColor+';padding:14px;display:inline-flex;flex-direction:column;gap:10px;';
+  wrap.style.cssText = 'display:inline-flex;flex-direction:column;gap:10px;padding:14px;';
 
   // カード（1〜3回目Pt＋合計Pt）を横並びで複製
   const cardsRow = document.createElement('div');
@@ -1670,23 +1679,35 @@ function savePointScreenshot(){
   const tableClone = tableArea.cloneNode(true);
   tableClone.style.maxHeight = 'none';
   tableClone.style.overflow = 'visible';
+  // モバイル用のposition:sticky（列固定・ヘッダー固定）はhtml2canvasと相性が悪く
+  // 列の位置がずれる原因になるため、複製側では無効化する
+  tableClone.querySelectorAll('th, td').forEach(cell => {
+    cell.style.position = 'static';
+    cell.style.left = 'auto';
+    cell.style.top = 'auto';
+    cell.style.boxShadow = 'none';
+  });
   wrap.appendChild(tableClone);
 
-  document.body.appendChild(wrap);
+  overlay.appendChild(wrap);
+  document.body.appendChild(overlay);
 
-  html2canvas(wrap, {
-    backgroundColor: bgColor,
-    scale: Math.max(window.devicePixelRatio || 1, 2),
-    useCORS: true,
-    width: wrap.scrollWidth,
-    height: wrap.scrollHeight
-  }).then(canvas => {
-    wrap.remove();
-    return exportCanvasAsImage(canvas, arcName);
-  }).catch(err => {
-    wrap.remove();
-    console.error(err);
-    alert('スクリーンショットの保存に失敗しました。');
+  // レイアウト確定を待ってから撮影
+  requestAnimationFrame(() => {
+    html2canvas(wrap, {
+      backgroundColor: bgColor,
+      scale: Math.max(window.devicePixelRatio || 1, 2),
+      useCORS: true,
+      width: wrap.scrollWidth,
+      height: wrap.scrollHeight
+    }).then(canvas => {
+      overlay.remove();
+      return exportCanvasAsImage(canvas, arcName);
+    }).catch(err => {
+      overlay.remove();
+      console.error(err);
+      alert('スクリーンショットの保存に失敗しました。');
+    });
   });
 }
 
