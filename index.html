@@ -2062,6 +2062,11 @@ function render(){
 // 区切り文字： "|" = n/s/t/p の区切り、";" = 列の区切り、"/" = main/subの区切り、
 // "X" = 未設定(-1)を表す1文字。武将名にこれらの記号が含まれることは無い前提。
 // 編成名(n)だけは自由入力なので encodeURIComponent で保護する。
+// 大文字小文字を区別せずに接頭辞をチェックする（コピー元の環境によっては
+// 小文字になって渡ってくることがあるため）。
+function hasPrefixCI(text, prefix){
+  return text.slice(0, prefix.length).toUpperCase() === prefix.toUpperCase();
+}
 const FORMATION_PREFIX = 'SF:';
 // 極端に長い文字列（; を大量連結する等）が貼り付けられた際にsplit処理が
 // 無駄に重くなるのを防ぐための入力長上限。通常の編成データは長くても
@@ -2164,7 +2169,7 @@ function restoreFromModal(){
     alert('編成データを貼り付けてください。');
     return;
   }
-  if(!text.startsWith(FORMATION_PREFIX)){
+  if(!hasPrefixCI(text, FORMATION_PREFIX)){
     alert(`編成データの形式が正しくありません。「${FORMATION_PREFIX}」から始まる文字列を貼り付けてください。`);
     return;
   }
@@ -2187,7 +2192,7 @@ document.addEventListener('paste', (e) => {
   const text = (e.clipboardData || window.clipboardData) ? (e.clipboardData || window.clipboardData).getData('text') : '';
   if(!text) return;
 
-  if(text.startsWith(FORMATION_PREFIX)){
+  if(hasPrefixCI(text, FORMATION_PREFIX)){
     e.preventDefault();
     if(text.length > FORMATION_MAX_LENGTH){
       alert('編成データが長すぎます。正しい編成データか確認してください。');
@@ -2208,7 +2213,7 @@ document.addEventListener('paste', (e) => {
     return;
   }
 
-  if(text.startsWith(POINT_PREFIX)){
+  if(hasPrefixCI(text, POINT_PREFIX)){
     e.preventDefault();
     if(text.length > POINT_MAX_LENGTH){
       alert('タイム表データが長すぎます。正しいタイム表データか確認してください。');
@@ -2341,7 +2346,7 @@ function restorePointFromModal(){
     alert('タイム表データを貼り付けてください。');
     return;
   }
-  if(!text.startsWith(POINT_PREFIX)){
+  if(!hasPrefixCI(text, POINT_PREFIX)){
     alert(`タイム表データの形式が正しくありません。「${POINT_PREFIX}」から始まる文字列を貼り付けてください。`);
     return;
   }
