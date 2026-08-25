@@ -2219,21 +2219,20 @@ function restoreFromModal(){
   }
 }
 
-document.addEventListener('paste', (e) => {
-  if(e.target && (e.target.id === 'load-modal-textarea' || e.target.id === 'point-load-modal-textarea')) return; // テキストエリア内は通常のペースト動作に任せる
-  const text = (e.clipboardData || window.clipboardData) ? (e.clipboardData || window.clipboardData).getData('text') : '';
-  if(!text) return;
+// 貼り付けられた文字列が編成/タイム表データの形式であれば読み込む。
+// 該当する形式だった場合は true を返す（呼び出し側で「入力欄の値を元に戻す」判断に使う）。
+function tryProcessPastedText(text){
+  if(!text) return false;
 
   if(hasPrefixCI(text, FORMATION_PREFIX)){
-    e.preventDefault();
     if(text.length > FORMATION_MAX_LENGTH){
       alert('編成データが長すぎます。正しい編成データか確認してください。');
-      return;
+      return true;
     }
     // 悪意あるサイト等に誘導され、細工した編成データを気づかず貼り付けさせられる
     // 「ペーストジャッキング」対策として、実際に反映する前に必ず確認を挟む。
     if(!confirm('クリップボードの内容を編成データとして読み込みます。よろしいですか？\n（心当たりのない場所からコピーした文字列の場合はキャンセルしてください）')){
-      return;
+      return true;
     }
     try{
       const data = unpackFormation(text.slice(FORMATION_PREFIX.length));
@@ -2242,18 +2241,17 @@ document.addEventListener('paste', (e) => {
       console.error(err);
       alert('編成データの読み込みに失敗しました。コピーした文字列が正しいか確認してください。');
     }
-    return;
+    return true;
   }
 
   if(hasPrefixCI(text, POINT_PREFIX)){
-    e.preventDefault();
     if(text.length > POINT_MAX_LENGTH){
       alert('タイム表データが長すぎます。正しいタイム表データか確認してください。');
-      return;
+      return true;
     }
     // 編成データと同様、ペーストジャッキング対策として確認を挟む。
     if(!confirm('クリップボードの内容をタイム表データとして読み込みます。よろしいですか？\n（心当たりのない場所からコピーした文字列の場合はキャンセルしてください）')){
-      return;
+      return true;
     }
     try{
       const data = unpackPointData(text.slice(POINT_PREFIX.length));
@@ -2262,9 +2260,47 @@ document.addEventListener('paste', (e) => {
       console.error(err);
       alert('タイム表データの読み込みに失敗しました。コピーした文字列が正しいか確認してください。');
     }
+    return true;
+  }
+
+  return false;
+}
+
+// スマホ（iOS/Android）のブラウザは、paste イベント中に e.preventDefault() を呼んでも
+// 入力欄へのネイティブな貼り付け挿入を確実には止められないことがある
+// （特に paste ハンドラ内で confirm() 等の同期ダイアログを挟むケースで顕著）。
+// また e.clipboardData からテキストを同期的に取得できない環境もある。
+// そのため、PC同様「イベントを止めて処理する」方式に加えて、
+// 「入力欄に実際に挿入された後の値を確認し、対象の形式だったら元の値に戻しつつ処理する」
+// フォールバックを併用する。これによりPC・スマホどちらでも動作する。
+document.addEventListener('paste', (e) => {
+  if(e.target && (e.target.id === 'load-modal-textarea' || e.target.id === 'point-load-modal-textarea')) return; // テキストエリア内は通常のペースト動作に任せる
+
+  const target = e.target;
+  const isEditable = !!target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+  const prevValue = isEditable ? (target.isContentEditable ? target.textContent : target.value) : null;
+
+  const text = (e.clipboardData || window.clipboardData) ? (e.clipboardData || window.clipboardData).getData('text') : '';
+
+  if(text && tryProcessPastedText(text)){
+    // クリップボードの内容をJS側で直接読めた場合（主にPC）はここでデフォルト動作を止める。
+    e.preventDefault();
     return;
   }
-  // 対応する形式ではないので、通常のペーストは邪魔しない
+
+  // クリップボードをJS側で読めなかった／空だった場合（主にスマホ）は、
+  // ブラウザ標準の貼り付け処理に一旦任せ、貼り付け後の値を見て判定する。
+  if(isEditable){
+    setTimeout(() => {
+      const newValue = target.isContentEditable ? target.textContent : target.value;
+      if(newValue === prevValue) return; // 何も挿入されなかった
+      if(tryProcessPastedText(newValue)){
+        // 対象の形式だった場合は、入力欄に誤って挿入された文字列を元に戻す
+        if(target.isContentEditable) target.textContent = prevValue;
+        else target.value = prevValue;
+      }
+    }, 0);
+  }
 });
 
 // ===== タイム表（ポイント効率）のコピー＆貼り付け復元 =====
