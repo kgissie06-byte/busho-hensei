@@ -701,7 +701,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
             </div>
             <div class="point-extra-time-row">
               <span class="point-extra-time-label">下道タイム：</span>
-              <input type="text" class="point-time-input"
+              <input type="text" class="point-time-input" id="point-roadtime-input"
                 value="0:00" placeholder="00:00" oninput="setPointRoadTime(this.value)">
             </div>
             <div class="point-extra-time-row">
@@ -731,6 +731,8 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
     </div>
     <div class="bottom-bar">
       <button class="icon-btn" onclick="savePointScreenshot()" title="ポイント効率をスクリーンショット保存"><i class="ti ti-camera" aria-hidden="true"></i></button>
+      <button class="icon-btn" onclick="savePointData()" title="タイム表をコピー"><i class="ti ti-download" aria-hidden="true"></i></button>
+      <button class="icon-btn" onclick="openPointLoadModal()" title="タイム表データを貼り付けて復元"><i class="ti ti-upload" aria-hidden="true"></i></button>
     </div>
   </div>
 
@@ -764,6 +766,18 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
     <div class="load-modal-buttons">
       <button class="load-modal-btn secondary" onclick="closeLoadModal()">キャンセル</button>
       <button class="load-modal-btn primary" onclick="restoreFromModal()">復元</button>
+    </div>
+  </div>
+</div>
+
+<div class="load-modal-backdrop" id="point-load-modal-backdrop" onclick="closePointLoadModal()">
+  <div class="load-modal" onclick="event.stopPropagation()">
+    <div class="load-modal-title">タイム表データを貼り付けて復元</div>
+    <textarea class="load-modal-textarea" id="point-load-modal-textarea"
+      placeholder="コピーしたタイム表データ（PT:... から始まる文字列）をここに貼り付けてください"></textarea>
+    <div class="load-modal-buttons">
+      <button class="load-modal-btn secondary" onclick="closePointLoadModal()">キャンセル</button>
+      <button class="load-modal-btn primary" onclick="restorePointFromModal()">復元</button>
     </div>
   </div>
 </div>
@@ -2169,27 +2183,181 @@ function restoreFromModal(){
 }
 
 document.addEventListener('paste', (e) => {
-  if(e.target && e.target.id === 'load-modal-textarea') return; // テキストエリア内は通常のペースト動作に任せる
+  if(e.target && (e.target.id === 'load-modal-textarea' || e.target.id === 'point-load-modal-textarea')) return; // テキストエリア内は通常のペースト動作に任せる
   const text = (e.clipboardData || window.clipboardData) ? (e.clipboardData || window.clipboardData).getData('text') : '';
-  if(!text || !text.startsWith(FORMATION_PREFIX)) return; // 通常のペーストは邪魔しない
-  e.preventDefault();
-  if(text.length > FORMATION_MAX_LENGTH){
-    alert('編成データが長すぎます。正しい編成データか確認してください。');
+  if(!text) return;
+
+  if(text.startsWith(FORMATION_PREFIX)){
+    e.preventDefault();
+    if(text.length > FORMATION_MAX_LENGTH){
+      alert('編成データが長すぎます。正しい編成データか確認してください。');
+      return;
+    }
+    // 悪意あるサイト等に誘導され、細工した編成データを気づかず貼り付けさせられる
+    // 「ペーストジャッキング」対策として、実際に反映する前に必ず確認を挟む。
+    if(!confirm('クリップボードの内容を編成データとして読み込みます。よろしいですか？\n（心当たりのない場所からコピーした文字列の場合はキャンセルしてください）')){
+      return;
+    }
+    try{
+      const data = unpackFormation(text.slice(FORMATION_PREFIX.length));
+      loadFormation(data);
+    }catch(err){
+      console.error(err);
+      alert('編成データの読み込みに失敗しました。コピーした文字列が正しいか確認してください。');
+    }
     return;
   }
-  // 悪意あるサイト等に誘導され、細工した編成データを気づかず貼り付けさせられる
-  // 「ペーストジャッキング」対策として、実際に反映する前に必ず確認を挟む。
-  if(!confirm('クリップボードの内容を編成データとして読み込みます。よろしいですか？\n（心当たりのない場所からコピーした文字列の場合はキャンセルしてください）')){
+
+  if(text.startsWith(POINT_PREFIX)){
+    e.preventDefault();
+    if(text.length > POINT_MAX_LENGTH){
+      alert('タイム表データが長すぎます。正しいタイム表データか確認してください。');
+      return;
+    }
+    // 編成データと同様、ペーストジャッキング対策として確認を挟む。
+    if(!confirm('クリップボードの内容をタイム表データとして読み込みます。よろしいですか？\n（心当たりのない場所からコピーした文字列の場合はキャンセルしてください）')){
+      return;
+    }
+    try{
+      const data = unpackPointData(text.slice(POINT_PREFIX.length));
+      loadPointData(data);
+    }catch(err){
+      console.error(err);
+      alert('タイム表データの読み込みに失敗しました。コピーした文字列が正しいか確認してください。');
+    }
+    return;
+  }
+  // 対応する形式ではないので、通常のペーストは邪魔しない
+});
+
+// ===== タイム表（ポイント効率）のコピー＆貼り付け復元 =====
+// 編成のコピー＆貼り付け復元と同じ考え方（区切り文字だけの独自フォーマット、
+// base64もJSONも使わない）を流用する。
+// 区切り文字： "|" = 項目同士の区切り、";" = 戦場ごとの区切り、
+// "," = 戦場内の複数値（撃破武将名など）の区切り。
+// 撃破武将名・下道タイムは自由入力/記号を含み得るため encodeURIComponent で保護する。
+const POINT_PREFIX = 'PT:';
+const POINT_MAX_LENGTH = 4000;
+
+function packPointData(data){
+  const enc = v => encodeURIComponent(v == null ? '' : String(v));
+  const selPart = data.sel.map(names => names.map(enc).join(',')).join(';');
+  const ccPart = data.cc.join(',');
+  const tmPart = data.tm.map(enc).join(',');
+  return [enc(data.arc), data.iv, enc(data.rt), data.fs, selPart, ccPart, tmPart].join('|');
+}
+
+function unpackPointData(packed){
+  const [arcPart, ivPart, rtPart, fsPart, selPart, ccPart, tmPart] = packed.split('|');
+  const arc = decodeURIComponent(arcPart || '');
+  const iv = parseInt(ivPart, 10);
+  const rt = decodeURIComponent(rtPart || '');
+  const fs = fsPart === '1';
+  const sel = (selPart || '').split(';').map(group => group === '' ? [] : group.split(',').map(decodeURIComponent));
+  const cc = (ccPart || '').split(',').map(v => parseInt(v, 10));
+  const tm = (tmPart || '').split(',').map(decodeURIComponent);
+  return { arc, iv, rt, fs, sel, cc, tm };
+}
+
+function serializePointData(){
+  const arcKey = document.getElementById('point-arc-select').value;
+  if(!arcKey) return null;
+  const arc = POINT_ARCS.find(a => a.key === arcKey);
+  const stages = (arc && POINT_DATA[arc.label]) || [];
+  const sel = stages.map((s, i) => pointSelections[pointKey(arcKey, i)] || []);
+  const cc = stages.map((s, i) => pointClearCounts[pointKey(arcKey, i)] || 1);
+  const tm = stages.map((s, i) => {
+    const key = pointKey(arcKey, i);
+    return pointTimes[key] !== undefined ? pointTimes[key] : '0:00';
+  });
+  return POINT_PREFIX + packPointData({ arc: arcKey, iv: pointInterval, rt: pointRoadTime, fs: pointFirstStrikeEnabled ? 1 : 0, sel, cc, tm });
+}
+
+async function savePointData(){
+  const text = serializePointData();
+  if(!text){
+    alert('討伐編を選択してください。');
     return;
   }
   try{
-    const data = unpackFormation(text.slice(FORMATION_PREFIX.length));
-    loadFormation(data);
+    await navigator.clipboard.writeText(text);
+    alert('タイム表をコピーしました。ポイント効率タブで貼り付け（ペースト）すると、この内容で表が復元されます。');
   }catch(err){
     console.error(err);
-    alert('編成データの読み込みに失敗しました。コピーした文字列が正しいか確認してください。');
+    window.prompt('自動コピーに失敗しました。以下のテキストを手動でコピーしてください:', text);
   }
-});
+}
+
+// 復元データの撃破武将名は、必ずその戦場に実在する敵の名前だけを採用する
+// （編成の武将名検証と同じ理由：貼り付けデータ経由でのDOM-based XSSを防ぐため）。
+function loadPointData(data){
+  const arc = POINT_ARCS.find(a => a.key === data.arc);
+  if(!arc) return;
+  const stages = POINT_DATA[arc.label] || [];
+  if(!Array.isArray(data.sel) || !Array.isArray(data.cc) || !Array.isArray(data.tm)) return;
+
+  stages.forEach((s, i) => {
+    const key = pointKey(arc.key, i);
+    const validNames = (s.enemies || []).map(e => e.name);
+    const rawNames = Array.isArray(data.sel[i]) ? data.sel[i] : [];
+    const names = rawNames.filter(n => typeof n === 'string' && validNames.includes(n));
+    if(names.length > 0) pointSelections[key] = names;
+    else delete pointSelections[key];
+
+    const cc = data.cc[i];
+    if(Number.isInteger(cc) && cc >= 1 && cc <= CLEAR_COUNT_OPTS.length) pointClearCounts[key] = cc;
+    else delete pointClearCounts[key];
+
+    const t = data.tm[i];
+    if(typeof t === 'string' && t.length <= 20) pointTimes[key] = t;
+    else delete pointTimes[key];
+  });
+
+  if(Number.isInteger(data.iv) && data.iv >= 0) pointInterval = data.iv;
+  if(typeof data.rt === 'string' && data.rt.length <= 20) pointRoadTime = data.rt;
+  pointFirstStrikeEnabled = !!data.fs;
+
+  document.getElementById('point-arc-select').value = arc.key;
+  document.getElementById('point-interval-input').value = pointInterval;
+  document.getElementById('point-roadtime-input').value = pointRoadTime;
+  document.getElementById('point-firststrike-checkbox').checked = pointFirstStrikeEnabled;
+
+  renderPointTab();
+}
+
+function openPointLoadModal(){
+  document.getElementById('point-load-modal-backdrop').classList.add('open');
+  const ta = document.getElementById('point-load-modal-textarea');
+  ta.value = '';
+  setTimeout(()=>ta.focus(), 50);
+}
+function closePointLoadModal(){
+  document.getElementById('point-load-modal-backdrop').classList.remove('open');
+}
+function restorePointFromModal(){
+  const ta = document.getElementById('point-load-modal-textarea');
+  const text = ta.value.trim();
+  if(!text){
+    alert('タイム表データを貼り付けてください。');
+    return;
+  }
+  if(!text.startsWith(POINT_PREFIX)){
+    alert(`タイム表データの形式が正しくありません。「${POINT_PREFIX}」から始まる文字列を貼り付けてください。`);
+    return;
+  }
+  if(text.length > POINT_MAX_LENGTH){
+    alert('タイム表データが長すぎます。正しいタイム表データか確認してください。');
+    return;
+  }
+  try{
+    const data = unpackPointData(text.slice(POINT_PREFIX.length));
+    loadPointData(data);
+    closePointLoadModal();
+  }catch(err){
+    console.error(err);
+    alert('タイム表データの読み込みに失敗しました。コピーした文字列が正しいか確認してください。');
+  }
+}
 
 // ===================================================================
 // 認証・端末認証（ログイン / 端末登録 / 端末検証 / 管理者用端末情報）
