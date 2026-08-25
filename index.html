@@ -393,6 +393,12 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
   .col-divider{margin:1px 0}
 }
 .icon-btn.on{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
+/* 編成／タイム表のコピー・貼り付け機能はPC専用。スマホ実機での貼り付け検出が
+   環境によって信頼できないため、タッチ主体の端末ではボタンごと非表示にする。
+   CSSのポインタ判定（即時反映・ちらつき無し）に加え、UA判定でJSからも念のため非表示にする。 */
+@media (pointer: coarse), (hover: none){
+  .pc-only{display:none !important}
+}
 
 /* 編成データ貼り付け（復元）モーダル */
 .load-modal-backdrop{
@@ -681,8 +687,8 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
       </button>
       <button class="icon-btn" onclick="newFormation()" title="新規作成"><i class="ti ti-plus" aria-hidden="true"></i></button>
       <button class="icon-btn" onclick="saveScreenshot()" title="編成をスクリーンショット保存"><i class="ti ti-camera" aria-hidden="true"></i></button>
-      <button class="icon-btn" onclick="saveFormation()" title="編成をコピー"><i class="ti ti-download" aria-hidden="true"></i></button>
-      <button class="icon-btn" onclick="openLoadModal()" title="編成データを貼り付けて復元"><i class="ti ti-upload" aria-hidden="true"></i></button>
+      <button class="icon-btn pc-only" onclick="saveFormation()" title="編成をコピー"><i class="ti ti-download" aria-hidden="true"></i></button>
+      <button class="icon-btn pc-only" onclick="openLoadModal()" title="編成データを貼り付けて復元"><i class="ti ti-upload" aria-hidden="true"></i></button>
     </div>
   </div>
 
@@ -731,8 +737,8 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
     </div>
     <div class="bottom-bar">
       <button class="icon-btn" onclick="savePointScreenshot()" title="ポイント効率をスクリーンショット保存"><i class="ti ti-camera" aria-hidden="true"></i></button>
-      <button class="icon-btn" onclick="savePointData()" title="タイム表をコピー"><i class="ti ti-download" aria-hidden="true"></i></button>
-      <button class="icon-btn" onclick="openPointLoadModal()" title="タイム表データを貼り付けて復元"><i class="ti ti-upload" aria-hidden="true"></i></button>
+      <button class="icon-btn pc-only" onclick="savePointData()" title="タイム表をコピー"><i class="ti ti-download" aria-hidden="true"></i></button>
+      <button class="icon-btn pc-only" onclick="openPointLoadModal()" title="タイム表データを貼り付けて復元"><i class="ti ti-upload" aria-hidden="true"></i></button>
     </div>
   </div>
 
@@ -2219,20 +2225,21 @@ function restoreFromModal(){
   }
 }
 
-// 貼り付けられた文字列が編成/タイム表データの形式であれば読み込む。
-// 該当する形式だった場合は true を返す（呼び出し側で「入力欄の値を元に戻す」判断に使う）。
-function tryProcessPastedText(text){
-  if(!text) return false;
+document.addEventListener('paste', (e) => {
+  if(e.target && (e.target.id === 'load-modal-textarea' || e.target.id === 'point-load-modal-textarea')) return; // テキストエリア内は通常のペースト動作に任せる
+  const text = (e.clipboardData || window.clipboardData) ? (e.clipboardData || window.clipboardData).getData('text') : '';
+  if(!text) return;
 
   if(hasPrefixCI(text, FORMATION_PREFIX)){
+    e.preventDefault();
     if(text.length > FORMATION_MAX_LENGTH){
       alert('編成データが長すぎます。正しい編成データか確認してください。');
-      return true;
+      return;
     }
     // 悪意あるサイト等に誘導され、細工した編成データを気づかず貼り付けさせられる
     // 「ペーストジャッキング」対策として、実際に反映する前に必ず確認を挟む。
     if(!confirm('クリップボードの内容を編成データとして読み込みます。よろしいですか？\n（心当たりのない場所からコピーした文字列の場合はキャンセルしてください）')){
-      return true;
+      return;
     }
     try{
       const data = unpackFormation(text.slice(FORMATION_PREFIX.length));
@@ -2241,17 +2248,18 @@ function tryProcessPastedText(text){
       console.error(err);
       alert('編成データの読み込みに失敗しました。コピーした文字列が正しいか確認してください。');
     }
-    return true;
+    return;
   }
 
   if(hasPrefixCI(text, POINT_PREFIX)){
+    e.preventDefault();
     if(text.length > POINT_MAX_LENGTH){
       alert('タイム表データが長すぎます。正しいタイム表データか確認してください。');
-      return true;
+      return;
     }
     // 編成データと同様、ペーストジャッキング対策として確認を挟む。
     if(!confirm('クリップボードの内容をタイム表データとして読み込みます。よろしいですか？\n（心当たりのない場所からコピーした文字列の場合はキャンセルしてください）')){
-      return true;
+      return;
     }
     try{
       const data = unpackPointData(text.slice(POINT_PREFIX.length));
@@ -2260,59 +2268,25 @@ function tryProcessPastedText(text){
       console.error(err);
       alert('タイム表データの読み込みに失敗しました。コピーした文字列が正しいか確認してください。');
     }
-    return true;
+    return;
   }
-
-  return false;
-}
-
-// --- 貼り付け検出：paste イベントには頼らない方式 ---
-// スマホ（特にアプリ内ブラウザ等）では paste イベントがそもそも発火しない、
-// e.clipboardData が使えない、あるいは preventDefault() が効かないなど、
-// 環境によって挙動がバラバラで信頼できないことが分かったため、
-// 「paste イベントを検出する」のをやめ、「入力欄の中身が変化したら（理由を問わず）
-// SF:/PT: 形式になっていないか毎回チェックする」方式に変更する。
-// input イベントは、貼り付け・キーボード候補タップ・共有機能経由の挿入など、
-// 値が変化するあらゆる操作で確実に発火するため、paste イベントより信頼できる。
-function isTrackedEditable(el){
-  if(!el) return false;
-  if(el.id === 'load-modal-textarea' || el.id === 'point-load-modal-textarea') return false; // 専用モーダルは対象外（通常の貼り付けに任せる）
-  return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable === true;
-}
-function getEditableValue(el){ return el.isContentEditable ? el.textContent : el.value; }
-function setEditableValue(el, v){ if(el.isContentEditable) el.textContent = v; else el.value = v; }
-
-// 各入力欄について「直前の（不正でない）値」を覚えておき、SF:/PT: 形式の
-// 文字列が紛れ込んだ際にその値へ戻せるようにする。
-const lastCleanValue = new WeakMap();
-
-function handleEditableValueChange(el){
-  if(!isTrackedEditable(el)) return;
-  const val = getEditableValue(el);
-  if(hasPrefixCI(val, FORMATION_PREFIX) || hasPrefixCI(val, POINT_PREFIX)){
-    const clean = lastCleanValue.has(el) ? lastCleanValue.get(el) : '';
-    setEditableValue(el, clean); // 誤って入力欄に入り込んだ文字列を即座に取り消す
-    tryProcessPastedText(val);
-  }else{
-    lastCleanValue.set(el, val);
-  }
-}
-
-// input：通常の変化検出。change：input が発火しない一部の環境向けの保険。
-document.addEventListener('input', (e) => handleEditableValueChange(e.target));
-document.addEventListener('change', (e) => handleEditableValueChange(e.target));
-
-// PCでは、貼り付けた瞬間に文字列が一瞬でも入力欄に表示されてしまう
-// ちらつきを避けるため、可能であれば paste イベントの時点で先回りして処理する
-// （効かない環境があっても、上の input/change イベントが必ず拾ってくれる）。
-document.addEventListener('paste', (e) => {
-  if(!isTrackedEditable(e.target)) return;
-  const text = (e.clipboardData || window.clipboardData) ? (e.clipboardData || window.clipboardData).getData('text') : '';
-  if(text && (hasPrefixCI(text, FORMATION_PREFIX) || hasPrefixCI(text, POINT_PREFIX))){
-    e.preventDefault();
-    tryProcessPastedText(text);
-  }
+  // 対応する形式ではないので、通常のペーストは邪魔しない
 });
+
+// スマホ（タッチ操作主体の端末）では、編成／タイム表のコピー・貼り付け機能自体を
+// 使わせない（ボタンはCSSの pointer:coarse で非表示済みだが、UA判定でも
+// 念のため二重に隠しておく）。ペースト処理自体はPC版のまま変更しない。
+(function hidePcOnlyButtonsOnMobile(){
+  const ua = navigator.userAgent || '';
+  let isMobile = /iPhone|iPad|iPod|Android/i.test(ua);
+  // iPadOS 13+ は UA が Mac と区別つかないことがあるため、タッチ対応で判定を補う
+  if(!isMobile && navigator.maxTouchPoints > 1 && /Macintosh/i.test(ua)) isMobile = true;
+  if(isMobile){
+    document.querySelectorAll('.pc-only').forEach(el => { el.style.display = 'none'; });
+  }
+})();
+
+
 
 // ===== タイム表（ポイント効率）のコピー＆貼り付け復元 =====
 // 編成のコピー＆貼り付け復元と同じ考え方（区切り文字だけの独自フォーマット、
