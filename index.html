@@ -2107,14 +2107,46 @@ function serializeFormation(){
   return FORMATION_PREFIX + packFormation(data);
 }
 
-async function saveFormation(){
-  const text = serializeFormation();
+// クリップボードへのコピー処理（フォールバック付き）。
+// 1. navigator.clipboard.writeText を試す（対応環境・許可がある場合はこれで確実）
+// 2. 失敗した場合、非表示のtextareaを使ったdocument.execCommand('copy')を試す
+//    （権限プロンプトが出ない古い方式だが、iOS Safari含め多くの環境で動く）
+// 3. どちらも失敗した場合のみ、手動コピー用のプロンプトを最終手段として表示する
+//    （長い文字列だと先頭が見切れて選択漏れしやすいため、あくまで最終手段）
+async function copyTextToClipboard(text){
   try{
     await navigator.clipboard.writeText(text);
-    alert('編成をコピーしました。編成画面で貼り付け（ペースト）すると、この内容で編成が復元されます。');
+    return true;
   }catch(err){
-    console.error(err);
-    window.prompt('自動コピーに失敗しました。以下のテキストを手動でコピーしてください:', text);
+    console.error('clipboard.writeText failed', err);
+  }
+  try{
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    ta.style.left = '-1000px';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    if(ok) return true;
+  }catch(err){
+    console.error('execCommand copy failed', err);
+  }
+  return false;
+}
+
+async function saveFormation(){
+  const text = serializeFormation();
+  const ok = await copyTextToClipboard(text);
+  if(ok){
+    alert('編成をコピーしました。編成画面で貼り付け（ペースト）すると、この内容で編成が復元されます。');
+  }else{
+    window.prompt('自動コピーに失敗しました。以下のテキストを全選択してコピーしてください（先頭の"SF:"から末尾まで漏れなく選択してください）:', text);
   }
 }
 
@@ -2284,12 +2316,11 @@ async function savePointData(){
     alert('討伐編を選択してください。');
     return;
   }
-  try{
-    await navigator.clipboard.writeText(text);
+  const ok = await copyTextToClipboard(text);
+  if(ok){
     alert('タイム表をコピーしました。ポイント効率タブで貼り付け（ペースト）すると、この内容で表が復元されます。');
-  }catch(err){
-    console.error(err);
-    window.prompt('自動コピーに失敗しました。以下のテキストを手動でコピーしてください:', text);
+  }else{
+    window.prompt('自動コピーに失敗しました。以下のテキストを全選択してコピーしてください（先頭の"PT:"から末尾まで漏れなく選択してください）:', text);
   }
 }
 
