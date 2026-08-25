@@ -2266,40 +2266,51 @@ function tryProcessPastedText(text){
   return false;
 }
 
-// スマホ（iOS/Android）のブラウザは、paste イベント中に e.preventDefault() を呼んでも
-// 入力欄へのネイティブな貼り付け挿入を確実には止められないことがある
-// （特に paste ハンドラ内で confirm() 等の同期ダイアログを挟むケースで顕著）。
-// また e.clipboardData からテキストを同期的に取得できない環境もある。
-// そのため、PC同様「イベントを止めて処理する」方式に加えて、
-// 「入力欄に実際に挿入された後の値を確認し、対象の形式だったら元の値に戻しつつ処理する」
-// フォールバックを併用する。これによりPC・スマホどちらでも動作する。
-document.addEventListener('paste', (e) => {
-  if(e.target && (e.target.id === 'load-modal-textarea' || e.target.id === 'point-load-modal-textarea')) return; // テキストエリア内は通常のペースト動作に任せる
+// --- 貼り付け検出：paste イベントには頼らない方式 ---
+// スマホ（特にアプリ内ブラウザ等）では paste イベントがそもそも発火しない、
+// e.clipboardData が使えない、あるいは preventDefault() が効かないなど、
+// 環境によって挙動がバラバラで信頼できないことが分かったため、
+// 「paste イベントを検出する」のをやめ、「入力欄の中身が変化したら（理由を問わず）
+// SF:/PT: 形式になっていないか毎回チェックする」方式に変更する。
+// input イベントは、貼り付け・キーボード候補タップ・共有機能経由の挿入など、
+// 値が変化するあらゆる操作で確実に発火するため、paste イベントより信頼できる。
+function isTrackedEditable(el){
+  if(!el) return false;
+  if(el.id === 'load-modal-textarea' || el.id === 'point-load-modal-textarea') return false; // 専用モーダルは対象外（通常の貼り付けに任せる）
+  return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable === true;
+}
+function getEditableValue(el){ return el.isContentEditable ? el.textContent : el.value; }
+function setEditableValue(el, v){ if(el.isContentEditable) el.textContent = v; else el.value = v; }
 
-  const target = e.target;
-  const isEditable = !!target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
-  const prevValue = isEditable ? (target.isContentEditable ? target.textContent : target.value) : null;
+// 各入力欄について「直前の（不正でない）値」を覚えておき、SF:/PT: 形式の
+// 文字列が紛れ込んだ際にその値へ戻せるようにする。
+const lastCleanValue = new WeakMap();
 
-  const text = (e.clipboardData || window.clipboardData) ? (e.clipboardData || window.clipboardData).getData('text') : '';
-
-  if(text && tryProcessPastedText(text)){
-    // クリップボードの内容をJS側で直接読めた場合（主にPC）はここでデフォルト動作を止める。
-    e.preventDefault();
-    return;
+function handleEditableValueChange(el){
+  if(!isTrackedEditable(el)) return;
+  const val = getEditableValue(el);
+  if(hasPrefixCI(val, FORMATION_PREFIX) || hasPrefixCI(val, POINT_PREFIX)){
+    const clean = lastCleanValue.has(el) ? lastCleanValue.get(el) : '';
+    setEditableValue(el, clean); // 誤って入力欄に入り込んだ文字列を即座に取り消す
+    tryProcessPastedText(val);
+  }else{
+    lastCleanValue.set(el, val);
   }
+}
 
-  // クリップボードをJS側で読めなかった／空だった場合（主にスマホ）は、
-  // ブラウザ標準の貼り付け処理に一旦任せ、貼り付け後の値を見て判定する。
-  if(isEditable){
-    setTimeout(() => {
-      const newValue = target.isContentEditable ? target.textContent : target.value;
-      if(newValue === prevValue) return; // 何も挿入されなかった
-      if(tryProcessPastedText(newValue)){
-        // 対象の形式だった場合は、入力欄に誤って挿入された文字列を元に戻す
-        if(target.isContentEditable) target.textContent = prevValue;
-        else target.value = prevValue;
-      }
-    }, 0);
+// input：通常の変化検出。change：input が発火しない一部の環境向けの保険。
+document.addEventListener('input', (e) => handleEditableValueChange(e.target));
+document.addEventListener('change', (e) => handleEditableValueChange(e.target));
+
+// PCでは、貼り付けた瞬間に文字列が一瞬でも入力欄に表示されてしまう
+// ちらつきを避けるため、可能であれば paste イベントの時点で先回りして処理する
+// （効かない環境があっても、上の input/change イベントが必ず拾ってくれる）。
+document.addEventListener('paste', (e) => {
+  if(!isTrackedEditable(e.target)) return;
+  const text = (e.clipboardData || window.clipboardData) ? (e.clipboardData || window.clipboardData).getData('text') : '';
+  if(text && (hasPrefixCI(text, FORMATION_PREFIX) || hasPrefixCI(text, POINT_PREFIX))){
+    e.preventDefault();
+    tryProcessPastedText(text);
   }
 });
 
