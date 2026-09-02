@@ -24,6 +24,8 @@
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- ローマ字→ひらがな変換（検索欄でのローマ字入力対応） -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/wanakana/5.3.1/wanakana.min.js"></script>
 
 <!-- iPhoneホーム画面追加用アイコン -->
 <link rel="apple-touch-icon" href="icon/apple-touch-icon.png">
@@ -648,7 +650,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
           <span class="sheet-title">武将を選択</span>
           <button class="sheet-close" onclick="closeSheet()">✕</button>
         </div>
-        <input class="search-box" type="text" placeholder="武将名を入力" id="search-input"
+        <input class="search-box" type="text" placeholder="武将名を入力（ローマ字可）" id="search-input"
           oninput="filterList()">
         <div class="general-list" id="general-list"></div>
         <button class="confirm-btn" onclick="confirmSelection()">確定</button>
@@ -924,7 +926,7 @@ let pointClearCounts = {};
 // pointTimes: ユーザーが入力したタイム（キーは pointKey と同じ形式）
 let pointTimes = {};
 // インターバル（秒・デフォルト5）と下道タイム（分:秒文字列）。表全体で共通の値。
-let pointInterval = 5;
+let pointInterval = 10;
 let pointRoadTime = '0:00';
 // 一番槍ボーナス：適用するかどうかは任意（デフォルトON）。表全体・右下カードの
 // 1回目Ptに影響するため、切り替え時は表を丸ごと再描画する。
@@ -1364,11 +1366,31 @@ function setupPointTab(){
 }
 setupPointTab();
 
+// ローマ字入力をひらがなに変換する（wanakanaが読み込めなかった場合は元の文字列をそのまま返す）
+function toHiraganaFromRomaji(str){
+  if(!str) return '';
+  if(window.wanakana && typeof wanakana.toHiragana === 'function'){
+    // IMEMode: true にすると「nihongo」のような入力途中の文字列も変換しつつ
+    // 変換できない末尾のローマ字（子音のみ等）はそのまま残してくれる
+    return wanakana.toHiragana(str, { IMEMode: true });
+  }
+  return str;
+}
+
 function filterList(){
   const raw = document.getElementById('search-input').value.trim();
-  const q = toHiragana(raw);
-  filteredList = !q ? [...GENERALS] : GENERALS.filter(g =>
-    g.name.includes(raw) || g.yomi.includes(q)
+  if(!raw){
+    filteredList = [...GENERALS];
+    selectedGeneral = null;
+    renderList();
+    return;
+  }
+  const qKana = toHiragana(raw);           // カタカナ→ひらがな
+  const qRomaji = toHiraganaFromRomaji(raw); // ローマ字→ひらがな
+  filteredList = GENERALS.filter(g =>
+    g.name.includes(raw) ||
+    g.yomi.includes(qKana) ||
+    (qRomaji && g.yomi.includes(qRomaji))
   );
   selectedGeneral = null;
   renderList();
