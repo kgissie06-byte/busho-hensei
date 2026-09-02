@@ -24,7 +24,6 @@
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<!-- ローマ字→ひらがな変換（検索欄でのローマ字入力対応） -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/wanakana/5.3.1/wanakana.min.js"></script>
 
 <!-- iPhoneホーム画面追加用アイコン -->
@@ -650,7 +649,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
           <span class="sheet-title">武将を選択</span>
           <button class="sheet-close" onclick="closeSheet()">✕</button>
         </div>
-        <input class="search-box" type="text" placeholder="武将名を入力（ローマ字可）" id="search-input"
+        <input class="search-box" type="text" placeholder="武将名を入力" id="search-input"
           oninput="filterList()">
         <div class="general-list" id="general-list"></div>
         <button class="confirm-btn" onclick="confirmSelection()">確定</button>
@@ -705,7 +704,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
             <div class="point-extra-time-row">
               <span class="point-extra-time-label">インターバル：</span>
               <input type="number" class="point-interval-input" id="point-interval-input"
-                value="5" min="0" step="1" oninput="setPointInterval(this.value)">
+                value="10" min="0" step="1" oninput="setPointInterval(this.value)">
             </div>
             <div class="point-extra-time-row">
               <span class="point-extra-time-label">下道タイム：</span>
@@ -925,7 +924,7 @@ let pointSelections = {};
 let pointClearCounts = {};
 // pointTimes: ユーザーが入力したタイム（キーは pointKey と同じ形式）
 let pointTimes = {};
-// インターバル（秒・デフォルト5）と下道タイム（分:秒文字列）。表全体で共通の値。
+// インターバル（秒・デフォルト10）と下道タイム（分:秒文字列）。表全体で共通の値。
 let pointInterval = 10;
 let pointRoadTime = '0:00';
 // 一番槍ボーナス：適用するかどうかは任意（デフォルトON）。表全体・右下カードの
