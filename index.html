@@ -578,8 +578,15 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 .device-action-btn.revoke:hover{background:#8a2a0d}
 .devices-refresh-btn{
   padding:6px 14px;background:var(--panel);border:1px solid var(--card-border);
-  border-radius:4px;font-size:12px;cursor:pointer;color:var(--text);margin-bottom:10px;
+  border-radius:4px;font-size:12px;cursor:pointer;color:var(--text);
 }
+.devices-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.devices-search-box{
+  padding:6px 9px;font-size:12px;min-width:220px;
+  border:1px solid var(--card-border);background:#f8f4ea;
+  border-radius:4px;color:var(--text);
+}
+.devices-search-box:focus{outline:none;border-color:var(--blue)}
 </style>
 </head>
 <body>
@@ -746,7 +753,10 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans JP','Hiragino Sans'
 
   <div id="tab-devices" style="display:none;flex:1;min-height:0">
     <div class="devices-wrap">
-      <button class="devices-refresh-btn" onclick="loadDevicesList()">更新</button>
+      <div class="devices-toolbar">
+        <button class="devices-refresh-btn" onclick="loadDevicesList()">更新</button>
+        <input type="text" class="devices-search-box" id="devices-search" placeholder="IDまたは名前で検索" oninput="renderDevicesList()">
+      </div>
       <div class="auth-error" id="devices-error"></div>
       <table class="devices-table">
         <thead>
@@ -2606,6 +2616,8 @@ document.getElementById('login-password').addEventListener('keydown', e => { if(
 // ===================================================================
 // 端末情報タブ（member_id=1 専用：一覧取得・承認・無効化）
 // ===================================================================
+let ALL_DEVICES = [];
+
 async function loadDevicesList(){
   const tbody = document.getElementById('devices-table-body');
   const errEl = document.getElementById('devices-error');
@@ -2619,7 +2631,8 @@ async function loadDevicesList(){
       tbody.innerHTML = '';
       return;
     }
-    renderDevicesList(data.devices);
+    ALL_DEVICES = data.devices || [];
+    renderDevicesList();
   }catch(e){
     console.error(e);
     errEl.textContent = '通信エラーが発生しました';
@@ -2627,10 +2640,35 @@ async function loadDevicesList(){
   }
 }
 
-function renderDevicesList(devices){
+// 承認待ちを最優先で上に表示し、その後は発行日時が新しい順に並べる
+function sortDevicesForDisplay(devices){
+  const statusOrder = { pending:0, approved:1, revoked:2 };
+  return [...devices].sort((a, b) => {
+    const oa = statusOrder[a.status] ?? 99;
+    const ob = statusOrder[b.status] ?? 99;
+    if(oa !== ob) return oa - ob;
+    return new Date(b.issuedAt || 0) - new Date(a.issuedAt || 0);
+  });
+}
+
+// ID・名前でのフィルタ（検索欄未入力なら全件対象）
+function filterDevicesBySearch(devices){
+  const input = document.getElementById('devices-search');
+  const q = (input ? input.value : '').trim().toLowerCase();
+  if(!q) return devices;
+  return devices.filter(d => {
+    const idStr = String(d.memberId ?? '').toLowerCase();
+    const nameStr = (d.memberName || '').toLowerCase();
+    return idStr.includes(q) || nameStr.includes(q);
+  });
+}
+
+function renderDevicesList(){
   const tbody = document.getElementById('devices-table-body');
+  const devices = sortDevicesForDisplay(filterDevicesBySearch(ALL_DEVICES));
   if(!devices || devices.length === 0){
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">端末情報がありません</td></tr>`;
+    const msg = ALL_DEVICES.length === 0 ? '端末情報がありません' : '該当する端末が見つかりません';
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">${msg}</td></tr>`;
     return;
   }
   const statusLabel = { pending:'承認待ち', approved:'承認済み', revoked:'無効化済み' };
